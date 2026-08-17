@@ -31,7 +31,13 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       extensions: buildExtensions(tab.id, noteNames, onNavigateNote, onOpenNote, onContentChange)
     })
 
-    const view = new EditorView({ state: initialState, parent: containerRef.current })
+    let view: EditorView
+    try {
+      view = new EditorView({ state: initialState, parent: containerRef.current })
+    } catch (err) {
+      console.error('[Editor] CM6 init failed:', err)
+      return
+    }
     viewRef.current = view
 
     // Restore scroll after CM has finished measuring content (RAF alone is too early for long docs)

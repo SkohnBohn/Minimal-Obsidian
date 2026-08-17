@@ -442,12 +442,12 @@ input {
 
 /* Live-preview: horizontal rule rendered from --- / ___ / *** */
 .cm-hr {
-  display: block;
+  display: inline-block;
   width: 100%;
   border: none;
   border-top: 1px solid var(--ash);
-  margin: 2px 0;
   height: 0;
+  vertical-align: middle;
 }
 
 /* Live-preview: footnote reference [^1] rendered as superscript */

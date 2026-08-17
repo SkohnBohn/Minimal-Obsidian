@@ -20,14 +20,18 @@ class FootnoteWidget extends WidgetType {
   ignoreEvent(): boolean { return false }
 }
 
+// Inline widget that draws a horizontal line inside the .cm-line container.
+// We avoid block:true because ViewPlugin block decorations require precise line-boundary
+// alignment enforced only at DOM render time, causing subtle crashes in some CM6 builds.
 class HRWidget extends WidgetType {
   toDOM(): HTMLElement {
-    const el = document.createElement('hr')
+    const el = document.createElement('span')
     el.className = 'cm-hr'
+    el.setAttribute('contenteditable', 'false')
     return el
   }
   eq(): boolean { return true }
-  ignoreEvent(): boolean { return false }
+  ignoreEvent(): boolean { return true }
 }
 
 // Matches [^1], [^note], [^multi-word] but not footnote definitions [^1]:
@@ -49,14 +53,14 @@ function buildDecorations(state: EditorState): DecorationSet {
     ranges.push(Decoration.replace({ widget: new FootnoteWidget(m[1]) }).range(from, to))
   }
 
-  // Horizontal rules: ___ / --- / *** on their own line → <hr>
+  // Horizontal rules: ___, ---, *** on their own line → visual divider
   for (let i = 1; i <= state.doc.lines; i++) {
     const line = state.doc.line(i)
     if (!HR_RE.test(line.text)) continue
     if (cursor >= line.from && cursor <= line.to) continue  // show raw on cursor line
-    ranges.push(
-      Decoration.replace({ widget: new HRWidget(), block: true }).range(line.from, line.to)
-    )
+    if (line.from < line.to) {
+      ranges.push(Decoration.replace({ widget: new HRWidget() }).range(line.from, line.to))
+    }
   }
 
   return Decoration.set(ranges, true)
