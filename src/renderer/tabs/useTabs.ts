@@ -101,6 +101,10 @@ export function useTabs() {
     // Case-insensitive match so [[Max Ernst]] and [[max ernst]] resolve to the same file.
     const file = files.find(f => f.name.toLowerCase() === nameLower)
     if (file) {
+      // Secondary guard by path: catches stale tab state after external rename events,
+      // where a tab still carries the old name but the disk file has the new path.
+      const existingByPath = tabsRef.current.find(t => t.path === file.path)
+      if (existingByPath) { setActiveTabId(existingByPath.id); return }
       await openTab(file.path, file.name)
     } else {
       const path = await window.api.vault.create(name)

@@ -13,9 +13,12 @@ interface EditorProps {
   onNavigateNote: (name: string) => void  // left-click: navigate current tab
   onOpenNote: (name: string) => void       // right-click / cmd+click: new tab
   onContentChange: (tabId: string, content: string, state: EditorState, scrollPos: number) => void
+  // Separate unmount callback that writes to the path captured at mount time without
+  // touching React state — prevents stale cmState from contaminating a navigated tab.
+  onEditorUnmount: (tabId: string, capturedPath: string, content: string) => void
 }
 
-export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange }: EditorProps) {
+export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange, onEditorUnmount }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
@@ -40,8 +43,10 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
 
     return () => {
       if (viewRef.current) {
-        const scrollPos = viewRef.current.scrollDOM.scrollTop
-        onContentChange(tab.id, viewRef.current.state.doc.toString(), viewRef.current.state, scrollPos)
+        // Use the dedicated unmount callback so the captured path (from mount time)
+        // is used for the save — never the tab's current path which may have already
+        // changed due to goBack / goForward / wikilink navigation.
+        onEditorUnmount(tab.id, tab.path, viewRef.current.state.doc.toString())
       }
       view.destroy()
       viewRef.current = null

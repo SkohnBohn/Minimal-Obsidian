@@ -26,6 +26,8 @@ export default function App() {
   } = useTabs()
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  // Tracks in-flight writes started by handleEditorUnmount so the quit flush can await them.
+  const pendingUnmountWrites = useRef<Promise<void>[]>([])
   const tabsRef = useRef(tabs)
   useEffect(() => { tabsRef.current = tabs }, [tabs])
 
@@ -65,6 +67,24 @@ export default function App() {
     [updateTabState, markTabSaved]
   )
 
+  const handleEditorUnmount = useCallback(
+    (tabId: string, capturedPath: string, content: string) => {
+      // Cancel the debounced save — the unmount write supersedes it.
+      const timer = saveTimers.current.get(tabId)
+      if (timer) { clearTimeout(timer); saveTimers.current.delete(tabId) }
+      // Write to the exact path this editor was mounted with. We deliberately do NOT
+      // call updateTabState here — the tab may have already navigated to a new file
+      // and we must not overwrite its new cmState / isDirty with old editor content.
+      const write = window.api.vault.write(capturedPath, content)
+        .catch(err => console.error('Editor unmount save failed:', capturedPath, err))
+      pendingUnmountWrites.current.push(write)
+      write.finally(() => {
+        pendingUnmountWrites.current = pendingUnmountWrites.current.filter(p => p !== write)
+      })
+    },
+    []
+  )
+
   const handleNavigateNote = useCallback((name: string) => {
     if (activeTabId) navigateInTab(activeTabId, name)
     else openTabByName(name)
@@ -89,13 +109,14 @@ export default function App() {
 
   useEffect(() => {
     return window.api.app.onWillQuit(async () => {
-      // Cancel all pending debounce timers and write dirty tabs immediately.
+      // Cancel pending debounce timers and write dirty open tabs immediately.
       for (const timer of saveTimers.current.values()) clearTimeout(timer)
       saveTimers.current.clear()
-      const writes = tabsRef.current
+      const activeWrites = tabsRef.current
         .filter(t => t.isDirty && t.cmState && t.path)
         .map(t => window.api.vault.write(t.path, t.cmState!.doc.toString()))
-      await Promise.allSettled(writes)
+      // Also await any in-flight unmount writes (e.g. user navigated then quit).
+      await Promise.allSettled([...activeWrites, ...pendingUnmountWrites.current])
       await window.api.app.confirmQuit()
     })
   }, [])
@@ -220,6 +241,7 @@ export default function App() {
                   onNavigateNote={handleNavigateNote}
                   onOpenNote={handleOpenNote}
                   onContentChange={handleContentChange}
+                  onEditorUnmount={handleEditorUnmount}
                 />
               </>
             ) : (
