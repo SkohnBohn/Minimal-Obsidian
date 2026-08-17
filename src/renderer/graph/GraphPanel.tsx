@@ -76,9 +76,9 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
       const tgt = nodeMap.get(edge.target)
       if (!s || !tgt) continue
       const dimmed = neighbourSet && !neighbourSet.has(edge.source) && !neighbourSet.has(edge.target)
-      ctx.globalAlpha = dimmed ? 0.1 : 0.5
-      ctx.strokeStyle = '#e6e5e5'
-      ctx.lineWidth = 0.8
+      ctx.globalAlpha = dimmed ? 0.08 : 0.45
+      ctx.strokeStyle = '#8b7040'
+      ctx.lineWidth = 1
       ctx.beginPath()
       ctx.moveTo(s.x, s.y)
       ctx.lineTo(tgt.x, tgt.y)
