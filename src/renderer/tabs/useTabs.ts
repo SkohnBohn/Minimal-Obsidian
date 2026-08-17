@@ -47,7 +47,7 @@ export function useTabs() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const restored = useRef(false)
   const tabsRef = useRef<Tab[]>([])
-  tabsRef.current = tabs
+  useEffect(() => { tabsRef.current = tabs }, [tabs])
 
   // Restore session
   useEffect(() => {
@@ -94,10 +94,12 @@ export function useTabs() {
   }, [])
 
   const openTabByName = useCallback(async (name: string) => {
-    const existing = tabsRef.current.find(t => t.name === name)
+    const nameLower = name.toLowerCase()
+    const existing = tabsRef.current.find(t => t.name.toLowerCase() === nameLower)
     if (existing) { setActiveTabId(existing.id); return }
     const files = await window.api.vault.list()
-    const file = files.find(f => f.name === name)
+    // Case-insensitive match so [[Max Ernst]] and [[max ernst]] resolve to the same file.
+    const file = files.find(f => f.name.toLowerCase() === nameLower)
     if (file) {
       await openTab(file.path, file.name)
     } else {
@@ -109,7 +111,9 @@ export function useTabs() {
   // Navigate within the current tab (pushes history)
   const navigateInTab = useCallback(async (tabId: string, name: string) => {
     const files = await window.api.vault.list()
-    const file = files.find(f => f.name === name)
+    // Case-insensitive match to avoid creating duplicate files on macOS (HFS+/APFS).
+    const nameLower = name.toLowerCase()
+    const file = files.find(f => f.name.toLowerCase() === nameLower)
     let targetPath: string
     let targetName: string
     if (file) {
@@ -117,6 +121,11 @@ export function useTabs() {
     } else {
       targetPath = await window.api.vault.create(name); targetName = name
     }
+    // If another tab already shows this file, just switch to it — don't duplicate.
+    // Two tabs pointing at the same path would race on auto-saves.
+    const otherTab = tabsRef.current.find(t => t.id !== tabId && t.path === targetPath)
+    if (otherTab) { setActiveTabId(otherTab.id); return }
+
     const content = await window.api.vault.read(targetPath)
     setTabs(prev => prev.map(t => {
       if (t.id !== tabId) return t

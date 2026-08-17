@@ -26,9 +26,8 @@ export default function App() {
   } = useTabs()
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-  // Keep ref in sync synchronously so callbacks always see the latest paths
   const tabsRef = useRef(tabs)
-  tabsRef.current = tabs
+  useEffect(() => { tabsRef.current = tabs }, [tabs])
 
   useEffect(() => {
     ;(async () => {
@@ -87,6 +86,19 @@ export default function App() {
       console.error('Rename failed', err)
     }
   }, [activeTab, editingTitle, titleInput, renameTab])
+
+  useEffect(() => {
+    return window.api.app.onWillQuit(async () => {
+      // Cancel all pending debounce timers and write dirty tabs immediately.
+      for (const timer of saveTimers.current.values()) clearTimeout(timer)
+      saveTimers.current.clear()
+      const writes = tabsRef.current
+        .filter(t => t.isDirty && t.cmState && t.path)
+        .map(t => window.api.vault.write(t.path, t.cmState!.doc.toString()))
+      await Promise.allSettled(writes)
+      await window.api.app.confirmQuit()
+    })
+  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

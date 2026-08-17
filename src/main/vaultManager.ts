@@ -51,7 +51,11 @@ export async function createFile(name: string): Promise<string> {
   if (!vaultPath) throw new Error('No vault open')
   const safeName = name.endsWith('.md') ? name : `${name}.md`
   const filePath = path.join(vaultPath, safeName)
-  await fs.writeFile(filePath, '', 'utf-8')
+  // If the file already exists (including case-insensitive macOS matches), never overwrite it.
+  // Use the canonical path from the directory listing so we return the real filename casing.
+  const existing = await findExistingFileCaseInsensitive(safeName)
+  if (existing) return existing
+  await fs.writeFile(filePath, '', { encoding: 'utf-8', flag: 'wx' })
   return filePath
 }
 
@@ -59,8 +63,24 @@ export async function renameFile(oldPath: string, newName: string): Promise<stri
   if (!vaultPath) throw new Error('No vault open')
   const safeName = newName.endsWith('.md') ? newName : `${newName}.md`
   const newPath = path.join(vaultPath, safeName)
+  // Prevent silently overwriting a different existing file.
+  if (newPath.toLowerCase() !== oldPath.toLowerCase()) {
+    const existing = await findExistingFileCaseInsensitive(safeName)
+    if (existing) throw new Error(`A note named "${newName}" already exists`)
+  }
   await fs.rename(oldPath, newPath)
   return newPath
+}
+
+async function findExistingFileCaseInsensitive(filename: string): Promise<string | null> {
+  if (!vaultPath) return null
+  const lower = filename.toLowerCase()
+  try {
+    const entries = await fs.readdir(vaultPath)
+    const match = entries.find(e => e.toLowerCase() === lower)
+    if (match) return path.join(vaultPath, match)
+  } catch { /* ignore */ }
+  return null
 }
 
 async function indexAll(): Promise<void> {

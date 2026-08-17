@@ -22,6 +22,10 @@ declare global {
         get(key: string): Promise<unknown>
         set(key: string, value: unknown): Promise<void>
       }
+      app: {
+        onWillQuit(cb: () => void): () => void
+        confirmQuit(): Promise<void>
+      }
     }
   }
 }

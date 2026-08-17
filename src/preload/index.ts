@@ -47,6 +47,14 @@ const api = {
     get: (key: string): Promise<unknown> => ipcRenderer.invoke('app:settings:get', key),
     set: (key: string, value: unknown): Promise<void> =>
       ipcRenderer.invoke('app:settings:set', key, value)
+  },
+  app: {
+    onWillQuit: (cb: () => void): (() => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('app:will-quit', handler)
+      return () => ipcRenderer.removeListener('app:will-quit', handler)
+    },
+    confirmQuit: (): Promise<void> => ipcRenderer.invoke('app:confirm-quit')
   }
 }
 

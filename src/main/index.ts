@@ -108,6 +108,20 @@ app.whenReady().then(() => {
 
   registerIPC(win)
 
+  // Give the renderer a chance to flush unsaved writes before quitting.
+  let readyToQuit = false
+  app.on('before-quit', (e) => {
+    if (!readyToQuit) {
+      e.preventDefault()
+      win.webContents.send('app:will-quit')
+    }
+  })
+
+  ipcMain.handle('app:confirm-quit', () => {
+    readyToQuit = true
+    app.quit()
+  })
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
