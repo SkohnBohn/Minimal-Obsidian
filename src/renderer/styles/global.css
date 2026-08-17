@@ -270,12 +270,10 @@ input {
   font-size: 14px;
 }
 
-/* Note title — lives inside .editor-wrap so it auto-aligns with editor content */
+/* Note title */
 .note-title {
   display: block;
-  max-width: var(--max-content);
-  margin: 0 auto;
-  padding: 24px 24px 4px;
+  padding: 24px 0 4px;
   font-size: 1.75em;
   font-weight: 700;
   line-height: 1.25;
@@ -299,7 +297,9 @@ input {
   padding: 12px 0 24px;
 }
 
-.editor-inner {
+/* Single centering wrapper shared by the title and the editor —
+   guarantees both start at the exact same horizontal position. */
+.editor-content {
   max-width: var(--max-content);
   margin: 0 auto;
   padding: 0 24px;
@@ -317,8 +317,6 @@ input {
 
 .cm-editor.cm-focused { outline: none !important; }
 .cm-scroller { overflow: auto; font-family: var(--font); }
-.cm-content { padding: 0; caret-color: var(--ink); }
-.cm-line { padding: 0; line-height: 1.7; }
 .cm-cursor { border-left-color: var(--ink); }
 .cm-activeLine { background: transparent !important; }
 .cm-selectionBackground { background: #d4c89a !important; }

@@ -72,6 +72,13 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       markdown(),
       EditorView.lineWrapping,
+      // Override CM6's base theme which sets .cm-line { padding: 0 2px 0 4px }.
+      // EditorView.theme() wins over the base theme via specificity, so this is
+      // the correct way — a plain global .cm-line rule loses to CM6's scoped styles.
+      EditorView.theme({
+        '.cm-content': { padding: '0', caretColor: 'var(--ink)' },
+        '.cm-line':    { padding: '0', lineHeight: '1.7' },
+      }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
@@ -83,8 +90,10 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
 
   return (
     <div className="editor-wrap">
-      {header}
-      <div className="editor-inner" ref={containerRef} style={{ minHeight: '100%' }} />
+      <div className="editor-content">
+        {header}
+        <div ref={containerRef} style={{ minHeight: '100%' }} />
+      </div>
     </div>
   )
 }
