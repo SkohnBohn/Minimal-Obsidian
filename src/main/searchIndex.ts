@@ -62,24 +62,38 @@ function buildSnippet(content: string, query: string): string {
 export async function search(query: string, limit = 20): Promise<SearchResult[]> {
   if (!query.trim()) return []
 
-  // @ts-ignore
-  const rawResults = await index.searchAsync(query, { limit, enrich: true })
-
   const seen = new Set<string>()
   const results: SearchResult[] = []
 
-  for (const field of rawResults) {
-    for (const r of (field as any).result) {
-      const doc: DocRecord = r.doc
-      if (seen.has(doc.path)) continue
-      seen.add(doc.path)
-      results.push({
-        path: doc.path,
-        name: doc.name,
-        snippet: buildSnippet(doc.content, query)
-      })
+  // FlexSearch tokenizes on non-alphanumeric chars, so purely symbolic queries
+  // (e.g. "---", "___") produce no tokens and return nothing. Only invoke it
+  // when the query contains at least one word character.
+  if (/\w/.test(query)) {
+    // @ts-ignore
+    const rawResults = await index.searchAsync(query, { limit, enrich: true })
+    for (const field of rawResults) {
+      for (const r of (field as any).result) {
+        const doc: DocRecord = r.doc
+        if (seen.has(doc.path)) continue
+        seen.add(doc.path)
+        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(doc.content, query) })
+      }
     }
   }
 
-  return results.slice(0, limit)
+  // Fallback: direct substring scan covers symbolic queries and fills gaps when
+  // FlexSearch finds nothing (e.g. query is a separator like "---" or "___").
+  if (results.length < limit) {
+    const q = query.toLowerCase()
+    for (const doc of docs.values()) {
+      if (results.length >= limit) break
+      if (seen.has(doc.path)) continue
+      if (doc.content.toLowerCase().includes(q) || doc.name.toLowerCase().includes(q)) {
+        seen.add(doc.path)
+        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(doc.content, query) })
+      }
+    }
+  }
+
+  return results
 }
