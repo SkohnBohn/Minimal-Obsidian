@@ -12,13 +12,15 @@ interface FileEntry { name: string; path: string; mtime: number }
 export default function App() {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [showSidebar, setShowSidebar] = useState(false)
-  const [showGraph, setShowGraph] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [vaultReady, setVaultReady] = useState(false)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
 
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
+    openGraphTab, renameTab,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
@@ -63,17 +65,28 @@ export default function App() {
     [updateTabState, markTabSaved]
   )
 
-  // Left-click on link: navigate current tab (pushes history)
   const handleNavigateNote = useCallback((name: string) => {
     if (activeTabId) navigateInTab(activeTabId, name)
     else openTabByName(name)
   }, [activeTabId, navigateInTab, openTabByName])
 
-  // Right-click / cmd+click on link: open in new tab
   const handleOpenNote = useCallback((name: string) => openTabByName(name), [openTabByName])
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
 
-  // Keyboard shortcuts
+  const commitRename = useCallback(async () => {
+    if (!activeTab || !editingTitle) return
+    const newName = titleInput.trim()
+    setEditingTitle(false)
+    if (!newName || newName === activeTab.name) return
+    try {
+      const newPath = await window.api.vault.rename(activeTab.path, newName)
+      renameTab(activeTab.id, newName, newPath)
+      setFiles(await window.api.vault.list())
+    } catch (err) {
+      console.error('Rename failed', err)
+    }
+  }, [activeTab, editingTitle, titleInput, renameTab])
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
@@ -109,72 +122,97 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Left rail */}
-      <div className="rail">
-        <button
-          className={`rail-btn${showSidebar ? ' active' : ''}`}
-          title="Search"
-          onClick={() => { setShowSidebar(v => !v); setShowGraph(false) }}
-        >
-          O
-        </button>
-        <button
-          className={`rail-btn${showGraph ? ' active' : ''}`}
-          title="Graph view"
-          onClick={() => { setShowGraph(v => !v); setShowSidebar(false) }}
-        >
-          ⬡
-        </button>
-        <button
-          className="rail-btn"
-          title="Open vault folder"
-          style={{ marginTop: 'auto', fontSize: '10px' }}
-          onClick={async () => {
-            const fl = await window.api.vault.open()
-            if (fl) { setFiles(fl); setVaultReady(true) }
-          }}
-        >
-          ⬙
-        </button>
-      </div>
+      {/* Draggable titlebar strip — sits above everything, keeps traffic lights clear */}
+      <div className="titlebar" />
 
-      {/* Main */}
-      <div className="main">
+      <div className="app-row">
+        {/* Left rail */}
+        <div className="rail">
+          <button
+            className={`rail-btn${showSidebar ? ' active' : ''}`}
+            title="Search"
+            onClick={() => setShowSidebar(v => !v)}
+          >
+            O
+          </button>
+          <button
+            className="rail-btn"
+            title="Graph view"
+            onClick={openGraphTab}
+          >
+            ⬡
+          </button>
+          <button
+            className="rail-btn"
+            title="Open vault folder"
+            style={{ marginTop: 'auto', fontSize: '10px' }}
+            onClick={async () => {
+              const fl = await window.api.vault.open()
+              if (fl) { setFiles(fl); setVaultReady(true) }
+            }}
+          >
+            ⬙
+          </button>
+        </div>
+
+        {/* Search sidebar — in flow, pushes main to the right */}
         {showSidebar && (
           <SearchSidebar
             onOpen={(path, name) => { handleOpenFile(path, name); setShowSidebar(false) }}
           />
         )}
 
-        <TabBar
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onActivate={setActiveTabId}
-          onClose={closeTab}
-        />
+        {/* Main content */}
+        <div className="main">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onActivate={setActiveTabId}
+            onClose={closeTab}
+          />
 
-        <div className="editor-pane">
-          {showGraph ? (
-            <GraphPanel
-              activeNoteName={activeTab?.name ?? null}
-              onOpenNote={name => { handleOpenNote(name); setShowGraph(false) }}
-            />
-          ) : activeTab ? (
-            <>
-              {/* Note title */}
-              <div className="note-title">{activeTab.name}</div>
-              <Editor
-                key={`${activeTab.id}-${activeTab.contentVersion}`}
-                tab={activeTab}
-                noteNames={noteNames}
-                onNavigateNote={handleNavigateNote}
+          <div className="editor-pane">
+            {activeTab?.type === 'graph' ? (
+              <GraphPanel
+                activeNoteName={null}
                 onOpenNote={handleOpenNote}
-                onContentChange={handleContentChange}
               />
-            </>
-          ) : (
-            <div className="editor-empty">⌘O to open a note</div>
-          )}
+            ) : activeTab ? (
+              <>
+                {editingTitle ? (
+                  <input
+                    className="note-title note-title-input"
+                    value={titleInput}
+                    onChange={e => setTitleInput(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitRename()
+                      if (e.key === 'Escape') setEditingTitle(false)
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="note-title"
+                    title="Click to rename"
+                    onClick={() => { setTitleInput(activeTab.name); setEditingTitle(true) }}
+                  >
+                    {activeTab.name}
+                  </div>
+                )}
+                <Editor
+                  key={`${activeTab.id}-${activeTab.contentVersion}`}
+                  tab={activeTab}
+                  noteNames={noteNames}
+                  onNavigateNote={handleNavigateNote}
+                  onOpenNote={handleOpenNote}
+                  onContentChange={handleContentChange}
+                />
+              </>
+            ) : (
+              <div className="editor-empty">⌘O to open a note</div>
+            )}
+          </div>
         </div>
       </div>
 

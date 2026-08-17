@@ -55,6 +55,14 @@ export async function createFile(name: string): Promise<string> {
   return filePath
 }
 
+export async function renameFile(oldPath: string, newName: string): Promise<string> {
+  if (!vaultPath) throw new Error('No vault open')
+  const safeName = newName.endsWith('.md') ? newName : `${newName}.md`
+  const newPath = path.join(vaultPath, safeName)
+  await fs.rename(oldPath, newPath)
+  return newPath
+}
+
 async function indexAll(): Promise<void> {
   const files = await listFiles()
   for (const f of files) {

@@ -31,6 +31,8 @@ const api = {
     write: (filePath: string, content: string): Promise<void> =>
       ipcRenderer.invoke('vault:write', filePath, content),
     create: (name: string): Promise<string> => ipcRenderer.invoke('vault:create', name),
+    rename: (oldPath: string, newName: string): Promise<string> =>
+      ipcRenderer.invoke('vault:rename', oldPath, newName),
     links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
     onChange: (cb: (event: VaultChangeEvent) => void) => {
       const handler = (_: unknown, event: VaultChangeEvent) => cb(event)

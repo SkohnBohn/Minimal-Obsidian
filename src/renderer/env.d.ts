@@ -11,6 +11,7 @@ declare global {
         read(filePath: string): Promise<string>
         write(filePath: string, content: string): Promise<void>
         create(name: string): Promise<string>
+        rename(oldPath: string, newName: string): Promise<string>
         links(): Promise<LinkGraph>
         onChange(cb: (event: VaultChangeEvent) => void): () => void
       }

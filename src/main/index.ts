@@ -8,6 +8,7 @@ import {
   readFile,
   writeFile,
   createFile,
+  renameFile,
   startWatcher
 } from './vaultManager'
 import { search } from './searchIndex'
@@ -27,7 +28,7 @@ function createWindow(): BrowserWindow {
       nodeIntegration: false
     },
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 10 }
+    trafficLightPosition: { x: 12, y: 8 }
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -66,6 +67,10 @@ function registerIPC(win: BrowserWindow): void {
 
   ipcMain.handle('vault:create', async (_e, name: string) => {
     return createFile(name)
+  })
+
+  ipcMain.handle('vault:rename', async (_e, oldPath: string, newName: string) => {
+    return renameFile(oldPath, newName)
   })
 
   ipcMain.handle('vault:links', async () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { EditorView, keymap, highlightActiveLine } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
@@ -61,7 +61,6 @@ export default function Editor({ tab, noteNames, onNavigateNote, onOpenNote, onC
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       markdown(),
-      highlightActiveLine(),
       EditorView.lineWrapping,
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       EditorView.updateListener.of(update => {

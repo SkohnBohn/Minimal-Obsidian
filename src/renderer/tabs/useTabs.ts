@@ -9,6 +9,7 @@ export interface NavEntry {
 
 export interface Tab {
   id: string
+  type: 'note' | 'graph'
   path: string
   name: string
   isDirty: boolean
@@ -25,10 +26,19 @@ const SESSION_ACTIVE_KEY = 'session.activeTabId'
 
 function makeTab(path: string, name: string, content: string): Tab {
   return {
-    id: uuidv4(), path, name,
+    id: uuidv4(), type: 'note', path, name,
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: content, contentVersion: 0,
     navHistory: [{ path, name }], navIndex: 0
+  }
+}
+
+function makeGraphTab(): Tab {
+  return {
+    id: uuidv4(), type: 'graph', path: '', name: 'Graph',
+    isDirty: false, scrollPos: 0, cmState: null,
+    initialContent: '', contentVersion: 0,
+    navHistory: [], navIndex: 0
   }
 }
 
@@ -201,12 +211,31 @@ export function useTabs() {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t))
   }, [])
 
+  const openGraphTab = useCallback(() => {
+    const existing = tabsRef.current.find(t => t.type === 'graph')
+    if (existing) { setActiveTabId(existing.id); return }
+    const gt = makeGraphTab()
+    setTabs(prev => [...prev, gt])
+    setActiveTabId(gt.id)
+  }, [])
+
+  const renameTab = useCallback((tabId: string, newName: string, newPath: string) => {
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId) return t
+      const navHistory = t.navHistory.map(e =>
+        e.path === t.path ? { path: newPath, name: newName } : e
+      )
+      return { ...t, path: newPath, name: newName, navHistory }
+    }))
+  }, [])
+
   const activeTab = tabs.find(t => t.id === activeTabId) ?? null
 
   return {
     tabs, activeTab, activeTabId,
     setActiveTabId, openTab, openTabByName,
     navigateInTab, goBack, goForward,
+    openGraphTab, renameTab,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   }

@@ -36,9 +36,24 @@ input {
 /* Layout */
 .app {
   display: flex;
+  flex-direction: column;
   height: 100%;
   width: 100%;
-  position: relative;
+}
+
+.titlebar {
+  height: 28px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--ash);
+}
+
+.app-row {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Left rail */
@@ -79,22 +94,17 @@ input {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  position: relative;
 }
 
-/* Search sidebar */
+/* Search sidebar — in flow, pushes main to the right */
 .sidebar {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: var(--sidebar-w);
   min-width: 180px;
-  height: 100%;
+  flex-shrink: 0;
   background: var(--bg-inset);
   border-right: 1px solid var(--ash);
   display: flex;
   flex-direction: column;
-  z-index: 5;
 }
 
 .sidebar-input-wrap {
@@ -273,6 +283,15 @@ input {
   box-sizing: border-box;
   font-family: var(--font);
   flex-shrink: 0;
+  cursor: text;
+}
+
+.note-title-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  border-bottom: 1px solid var(--ash);
+  display: block;
 }
 
 /* Editor container */
@@ -303,6 +322,7 @@ input {
 .cm-content { padding: 0; caret-color: var(--ink); }
 .cm-line { padding: 0; line-height: 1.7; }
 .cm-cursor { border-left-color: var(--ink); }
+.cm-activeLine { background: transparent !important; }
 .cm-selectionBackground { background: #d4c89a !important; }
 .cm-focused .cm-selectionBackground { background: #d4c89a !important; }
 
