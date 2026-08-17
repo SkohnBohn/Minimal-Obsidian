@@ -270,19 +270,17 @@ input {
   font-size: 14px;
 }
 
-/* Note title */
+/* Note title — lives inside .editor-wrap so it auto-aligns with editor content */
 .note-title {
+  display: block;
+  max-width: var(--max-content);
+  margin: 0 auto;
+  padding: 24px 24px 4px;
   font-size: 1.75em;
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);
-  padding: 24px 24px 4px;
-  max-width: var(--max-content);
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
   font-family: var(--font);
-  flex-shrink: 0;
   cursor: text;
 }
 
@@ -291,7 +289,7 @@ input {
   outline: none;
   background: transparent;
   border-bottom: 1px solid var(--ash);
-  display: block;
+  width: 100%;
 }
 
 /* Editor container */

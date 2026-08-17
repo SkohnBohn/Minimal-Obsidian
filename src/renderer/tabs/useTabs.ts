@@ -47,7 +47,7 @@ export function useTabs() {
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const restored = useRef(false)
   const tabsRef = useRef<Tab[]>([])
-  useEffect(() => { tabsRef.current = tabs }, [tabs])
+  tabsRef.current = tabs
 
   // Restore session
   useEffect(() => {

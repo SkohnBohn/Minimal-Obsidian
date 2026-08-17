@@ -9,12 +9,13 @@ import type { Tab } from '../tabs/useTabs'
 interface EditorProps {
   tab: Tab
   noteNames: string[]
+  header?: React.ReactNode
   onNavigateNote: (name: string) => void  // left-click: navigate current tab
   onOpenNote: (name: string) => void       // right-click / cmd+click: new tab
   onContentChange: (tabId: string, content: string, state: EditorState, scrollPos: number) => void
 }
 
-export default function Editor({ tab, noteNames, onNavigateNote, onOpenNote, onContentChange }: EditorProps) {
+export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
@@ -77,6 +78,7 @@ export default function Editor({ tab, noteNames, onNavigateNote, onOpenNote, onC
 
   return (
     <div className="editor-wrap">
+      {header}
       <div className="editor-inner" ref={containerRef} style={{ minHeight: '100%' }} />
     </div>
   )

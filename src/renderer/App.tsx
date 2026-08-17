@@ -26,8 +26,9 @@ export default function App() {
   } = useTabs()
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  // Keep ref in sync synchronously so callbacks always see the latest paths
   const tabsRef = useRef(tabs)
-  useEffect(() => { tabsRef.current = tabs }, [tabs])
+  tabsRef.current = tabs
 
   useEffect(() => {
     ;(async () => {
@@ -179,31 +180,31 @@ export default function App() {
               />
             ) : activeTab ? (
               <>
-                {editingTitle ? (
-                  <input
-                    className="note-title note-title-input"
-                    value={titleInput}
-                    onChange={e => setTitleInput(e.target.value)}
-                    onBlur={commitRename}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') commitRename()
-                      if (e.key === 'Escape') setEditingTitle(false)
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <div
-                    className="note-title"
-                    title="Click to rename"
-                    onClick={() => { setTitleInput(activeTab.name); setEditingTitle(true) }}
-                  >
-                    {activeTab.name}
-                  </div>
-                )}
                 <Editor
                   key={`${activeTab.id}-${activeTab.contentVersion}`}
                   tab={activeTab}
                   noteNames={noteNames}
+                  header={
+                    editingTitle
+                      ? <input
+                          className="note-title note-title-input"
+                          value={titleInput}
+                          onChange={e => setTitleInput(e.target.value)}
+                          onBlur={commitRename}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') commitRename()
+                            if (e.key === 'Escape') setEditingTitle(false)
+                          }}
+                          autoFocus
+                        />
+                      : <div
+                          className="note-title"
+                          title="Click to rename"
+                          onClick={() => { setTitleInput(activeTab.name); setEditingTitle(true) }}
+                        >
+                          {activeTab.name}
+                        </div>
+                  }
                   onNavigateNote={handleNavigateNote}
                   onOpenNote={handleOpenNote}
                   onContentChange={handleContentChange}
