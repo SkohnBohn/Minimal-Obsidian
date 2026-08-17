@@ -4,6 +4,7 @@ import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
+import { markdownDecorationsPlugin } from './markdownDecorations'
 import type { Tab } from '../tabs/useTabs'
 
 interface EditorProps {
@@ -80,6 +81,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
         '.cm-line':    { padding: '0', lineHeight: '1.7' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
+      markdownDecorationsPlugin,
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
           onChange(tabId, update.state.doc.toString(), update.state, update.view.scrollDOM.scrollTop)

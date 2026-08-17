@@ -32,19 +32,35 @@ const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
 function buildDecorations(state: EditorState): DecorationSet {
   const names = new Set(state.field(noteNamesField))
+  const cursor = state.selection.main.head
   const ranges: Range<Decoration>[] = []
   const doc = state.doc.toString()
   const re = new RegExp(WIKILINK_RE.source, 'g')
   let m: RegExpExecArray | null
   while ((m = re.exec(doc)) !== null) {
+    const from = m.index, to = m.index + m[0].length
     const target = m[1].trim()
     const cls = names.has(target) ? 'cm-wikilink-existing' : 'cm-wikilink-dead'
-    ranges.push(
-      Decoration.mark({
-        class: cls,
-        attributes: { 'data-target': target, style: 'cursor:pointer' }
-      }).range(m.index, m.index + m[0].length)
-    )
+    const attrs = { 'data-target': target, style: 'cursor:pointer' }
+
+    if (cursor >= from && cursor <= to) {
+      // Cursor inside — show raw markup so the user can edit it
+      ranges.push(Decoration.mark({ class: cls, attributes: attrs }).range(from, to))
+      continue
+    }
+
+    if (m[2]) {
+      // [[target|display]] — hide [[target|, mark the display text, hide ]]
+      const displayStart = from + 2 + m[1].length + 1
+      ranges.push(Decoration.replace({}).range(from, displayStart))
+      ranges.push(Decoration.mark({ class: cls, attributes: attrs }).range(displayStart, to - 2))
+      ranges.push(Decoration.replace({}).range(to - 2, to))
+    } else {
+      // [[target]] — hide [[ and ]], mark the target name
+      ranges.push(Decoration.replace({}).range(from, from + 2))
+      ranges.push(Decoration.mark({ class: cls, attributes: attrs }).range(from + 2, to - 2))
+      ranges.push(Decoration.replace({}).range(to - 2, to))
+    }
   }
   return Decoration.set(ranges, true)
 }
@@ -54,7 +70,7 @@ const wikilinkDecorationPlugin = ViewPlugin.fromClass(
     decorations: DecorationSet
     constructor(view: EditorView) { this.decorations = buildDecorations(view.state) }
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged ||
+      if (update.docChanged || update.viewportChanged || update.selectionSet ||
           update.transactions.some(tr => tr.effects.some(e => e.is(setNoteNames)))) {
         this.decorations = buildDecorations(update.state)
       }

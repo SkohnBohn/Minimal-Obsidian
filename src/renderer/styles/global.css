@@ -440,6 +440,24 @@ input {
   pointer-events: all;
 }
 
+/* Live-preview: horizontal rule rendered from --- / ___ / *** */
+.cm-hr {
+  display: block;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--ash);
+  margin: 2px 0;
+  height: 0;
+}
+
+/* Live-preview: footnote reference [^1] rendered as superscript */
+.cm-footnote-ref {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--link);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
