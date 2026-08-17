@@ -5,26 +5,16 @@ import {
   Decoration,
   DecorationSet
 } from '@codemirror/view'
-import {
-  StateField,
-  StateEffect,
-  Range,
-  EditorState
-} from '@codemirror/state'
-import {
-  autocompletion,
-  CompletionContext,
-  CompletionResult
-} from '@codemirror/autocomplete'
-
-// ── Public types ───────────────────────────────────────────────────────────
+import { StateField, StateEffect, Range, EditorState } from '@codemirror/state'
+import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
 
 export interface WikiLinkExtOptions {
   noteNames: string[]
-  onOpen: (name: string) => void
+  onNavigate: (name: string) => void    // left-click: navigate current tab
+  onOpenNewTab: (name: string) => void  // right-click: open in new tab
 }
 
-// ── Note-names state field (updated reactively) ────────────────────────────
+// ── Note-names state field ─────────────────────────────────────────────────
 
 export const setNoteNames = StateEffect.define<string[]>()
 
@@ -36,7 +26,7 @@ export const noteNamesField = StateField.define<string[]>({
   }
 })
 
-// ── Decoration builder ─────────────────────────────────────────────────────
+// ── Decorations ────────────────────────────────────────────────────────────
 
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 
@@ -59,18 +49,13 @@ function buildDecorations(state: EditorState): DecorationSet {
   return Decoration.set(ranges, true)
 }
 
-// ── Decoration plugin ──────────────────────────────────────────────────────
-
 const wikilinkDecorationPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
     constructor(view: EditorView) { this.decorations = buildDecorations(view.state) }
     update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.viewportChanged ||
-        update.transactions.some(tr => tr.effects.some(e => e.is(setNoteNames)))
-      ) {
+      if (update.docChanged || update.viewportChanged ||
+          update.transactions.some(tr => tr.effects.some(e => e.is(setNoteNames)))) {
         this.decorations = buildDecorations(update.state)
       }
     }
@@ -78,16 +63,29 @@ const wikilinkDecorationPlugin = ViewPlugin.fromClass(
   { decorations: v => v.decorations }
 )
 
-// ── Click handler ──────────────────────────────────────────────────────────
+// ── Click handlers ─────────────────────────────────────────────────────────
 
-function makeClickHandler(onOpen: (name: string) => void) {
+function makeClickHandlers(onNavigate: (n: string) => void, onOpenNewTab: (n: string) => void) {
   return EditorView.domEventHandlers({
     click(e) {
       const el = (e.target as HTMLElement).closest('[data-target]') as HTMLElement | null
       if (!el) return false
       const target = el.dataset.target
-      if (target) { e.preventDefault(); onOpen(target) }
-      return !!target
+      if (!target) return false
+      e.preventDefault()
+      // Cmd/Ctrl+click opens new tab; plain click navigates in current tab
+      if (e.metaKey || e.ctrlKey) onOpenNewTab(target)
+      else onNavigate(target)
+      return true
+    },
+    contextmenu(e) {
+      const el = (e.target as HTMLElement).closest('[data-target]') as HTMLElement | null
+      if (!el) return false
+      const target = el.dataset.target
+      if (!target) return false
+      e.preventDefault()
+      onOpenNewTab(target)
+      return true
     }
   })
 }
@@ -104,9 +102,7 @@ const wikilinkCompletion = autocompletion({
       if (text.includes('|') || text.includes(']]') || text.includes('[')) return null
       const names = ctx.state.field(noteNamesField)
       const query = text.toLowerCase()
-      const matches = names
-        .filter(n => n.toLowerCase().includes(query))
-        .slice(0, 8)
+      const matches = names.filter(n => n.toLowerCase().includes(query)).slice(0, 8)
       if (!matches.length) return null
       return {
         from: open + 2,
@@ -121,16 +117,13 @@ const wikilinkCompletion = autocompletion({
   ]
 })
 
-// ── Input rule: second [ → close with ]] ──────────────────────────────────
+// ── Input rule: second [ closes with ]] ───────────────────────────────────
 
 const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
   if (insert !== '[') return false
   const before = view.state.sliceDoc(Math.max(0, from - 1), from)
   if (before !== '[') return false
-  view.dispatch({
-    changes: { from, to, insert: '[]]' },
-    selection: { anchor: from + 1 }
-  })
+  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
   return true
 })
 
@@ -141,7 +134,7 @@ export function wikilinkExtension(opts: WikiLinkExtOptions) {
     noteNamesField.init(() => opts.noteNames),
     doubleBracketRule,
     wikilinkDecorationPlugin,
-    makeClickHandler(opts.onOpen),
+    makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),
     wikilinkCompletion
   ]
 }

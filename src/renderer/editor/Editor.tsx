@@ -9,11 +9,12 @@ import type { Tab } from '../tabs/useTabs'
 interface EditorProps {
   tab: Tab
   noteNames: string[]
-  onOpenNote: (name: string) => void
+  onNavigateNote: (name: string) => void  // left-click: navigate current tab
+  onOpenNote: (name: string) => void       // right-click / cmd+click: new tab
   onContentChange: (tabId: string, content: string, state: EditorState, scrollPos: number) => void
 }
 
-export default function Editor({ tab, noteNames, onOpenNote, onContentChange }: EditorProps) {
+export default function Editor({ tab, noteNames, onNavigateNote, onOpenNote, onContentChange }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
@@ -22,49 +23,38 @@ export default function Editor({ tab, noteNames, onOpenNote, onContentChange }: 
 
     const initialState = tab.cmState ?? EditorState.create({
       doc: tab.initialContent ?? '',
-      extensions: buildExtensions(tab.id, noteNames, onOpenNote, onContentChange)
+      extensions: buildExtensions(tab.id, noteNames, onNavigateNote, onOpenNote, onContentChange)
     })
 
-    const view = new EditorView({
-      state: initialState,
-      parent: containerRef.current
-    })
+    const view = new EditorView({ state: initialState, parent: containerRef.current })
     viewRef.current = view
 
-    // Restore scroll
     requestAnimationFrame(() => {
       if (tab.scrollPos) view.scrollDOM.scrollTop = tab.scrollPos
     })
 
     return () => {
-      // Save scroll before destroying
       if (viewRef.current) {
         const scrollPos = viewRef.current.scrollDOM.scrollTop
-        onContentChange(
-          tab.id,
-          viewRef.current.state.doc.toString(),
-          viewRef.current.state,
-          scrollPos
-        )
+        onContentChange(tab.id, viewRef.current.state.doc.toString(), viewRef.current.state, scrollPos)
       }
       view.destroy()
       viewRef.current = null
     }
-  // Recreate editor only when tab.id changes
+  // Remount when tab id OR contentVersion changes (in-tab navigation)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab.id])
+  }, [tab.id, tab.contentVersion])
 
-  // Update note names reactively
+  // Reactively update note names without remounting
   useEffect(() => {
-    const view = viewRef.current
-    if (!view) return
-    view.dispatch({ effects: setNoteNames.of(noteNames) })
+    viewRef.current?.dispatch({ effects: setNoteNames.of(noteNames) })
   }, [noteNames])
 
   function buildExtensions(
     tabId: string,
     names: string[],
-    openNote: (n: string) => void,
+    navigate: (n: string) => void,
+    openNewTab: (n: string) => void,
     onChange: EditorProps['onContentChange']
   ) {
     return [
@@ -73,11 +63,10 @@ export default function Editor({ tab, noteNames, onOpenNote, onContentChange }: 
       markdown(),
       highlightActiveLine(),
       EditorView.lineWrapping,
-      wikilinkExtension({ noteNames: names, onOpen: openNote }),
+      wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
-          const scrollPos = update.view.scrollDOM.scrollTop
-          onChange(tabId, update.state.doc.toString(), update.state, scrollPos)
+          onChange(tabId, update.state.doc.toString(), update.state, update.view.scrollDOM.scrollTop)
         }
       })
     ]
@@ -85,11 +74,7 @@ export default function Editor({ tab, noteNames, onOpenNote, onContentChange }: 
 
   return (
     <div className="editor-wrap">
-      <div
-        className="editor-inner"
-        ref={containerRef}
-        style={{ minHeight: '100%' }}
-      />
+      <div className="editor-inner" ref={containerRef} style={{ minHeight: '100%' }} />
     </div>
   )
 }

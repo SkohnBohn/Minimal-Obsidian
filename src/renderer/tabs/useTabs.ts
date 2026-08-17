@@ -2,6 +2,11 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { EditorState } from '@codemirror/state'
 import { v4 as uuidv4 } from 'uuid'
 
+export interface NavEntry {
+  path: string
+  name: string
+}
+
 export interface Tab {
   id: string
   path: string
@@ -10,15 +15,29 @@ export interface Tab {
   scrollPos: number
   cmState: EditorState | null
   initialContent: string
+  contentVersion: number   // incremented on in-tab navigation to force editor remount
+  navHistory: NavEntry[]   // visited notes in this tab
+  navIndex: number         // current position in navHistory
 }
 
 const SESSION_TABS_KEY = 'session.tabs'
 const SESSION_ACTIVE_KEY = 'session.activeTabId'
 
+function makeTab(path: string, name: string, content: string): Tab {
+  return {
+    id: uuidv4(), path, name,
+    isDirty: false, scrollPos: 0, cmState: null,
+    initialContent: content, contentVersion: 0,
+    navHistory: [{ path, name }], navIndex: 0
+  }
+}
+
 export function useTabs() {
   const [tabs, setTabs] = useState<Tab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const restored = useRef(false)
+  const tabsRef = useRef<Tab[]>([])
+  useEffect(() => { tabsRef.current = tabs }, [tabs])
 
   // Restore session
   useEffect(() => {
@@ -26,28 +45,22 @@ export function useTabs() {
     restored.current = true
     ;(async () => {
       const saved = (await window.api.settings.get(SESSION_TABS_KEY)) as
-        | Array<{ path: string; name: string }>
-        | undefined
-      const savedActiveId = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as
-        | string | undefined
-
+        | Array<{ path: string; name: string }> | undefined
+      const savedActive = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as string | undefined
       if (!saved?.length) return
       const restoredTabs: Tab[] = []
       for (const { path, name } of saved) {
         let content = ''
         try { content = await window.api.vault.read(path) } catch { continue }
-        restoredTabs.push({ id: uuidv4(), path, name, isDirty: false, scrollPos: 0, cmState: null, initialContent: content })
+        restoredTabs.push(makeTab(path, name, content))
       }
       if (!restoredTabs.length) return
       setTabs(restoredTabs)
-      const active = savedActiveId
-        ? restoredTabs.find(t => t.name === savedActiveId)
-        : restoredTabs[0]
+      const active = savedActive ? restoredTabs.find(t => t.name === savedActive) : restoredTabs[0]
       setActiveTabId((active ?? restoredTabs[0]).id)
     })()
   }, [])
 
-  // Persist tabs list
   useEffect(() => {
     window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({ path: t.path, name: t.name })))
   }, [tabs])
@@ -58,56 +71,21 @@ export function useTabs() {
   }, [activeTabId, tabs])
 
   const openTab = useCallback(async (path: string, name: string) => {
-    let existing: Tab | undefined
+    const existing = tabsRef.current.find(t => t.path === path)
+    if (existing) { setActiveTabId(existing.id); return }
+    const content = await window.api.vault.read(path)
     setTabs(prev => {
-      existing = prev.find(t => t.path === path)
-      return prev
-    })
-    // Need to read existing after state is settled; use a ref trick
-    // Simpler: just check with a ref
-    return new Promise<void>(resolve => {
-      setTabs(prev => {
-        const found = prev.find(t => t.path === path)
-        if (found) {
-          setActiveTabId(found.id)
-          resolve()
-          return prev
-        }
-        // Will be added after async read — we do it outside setState
-        resolve()
-        return prev
-      })
-    }).then(async () => {
-      // Re-check in case it was there
-      let found = false
-      setTabs(prev => {
-        if (prev.find(t => t.path === path)) found = true
-        return prev
-      })
-      if (found) return
-      const content = await window.api.vault.read(path)
-      const newTab: Tab = { id: uuidv4(), path, name, isDirty: false, scrollPos: 0, cmState: null, initialContent: content }
-      setTabs(prev => {
-        if (prev.find(t => t.path === path)) {
-          setActiveTabId(prev.find(t => t.path === path)!.id)
-          return prev
-        }
-        setActiveTabId(newTab.id)
-        return [...prev, newTab]
-      })
+      const found = prev.find(t => t.path === path)
+      if (found) { setActiveTabId(found.id); return prev }
+      const newTab = makeTab(path, name, content)
+      setActiveTabId(newTab.id)
+      return [...prev, newTab]
     })
   }, [])
 
   const openTabByName = useCallback(async (name: string) => {
-    let found = false
-    setTabs(prev => {
-      const t = prev.find(t => t.name === name)
-      if (t) { found = true; setActiveTabId(t.id) }
-      return prev
-    })
-    // Give setState a tick to settle
-    await new Promise(r => setTimeout(r, 0))
-    if (found) return
+    const existing = tabsRef.current.find(t => t.name === name)
+    if (existing) { setActiveTabId(existing.id); return }
     const files = await window.api.vault.list()
     const file = files.find(f => f.name === name)
     if (file) {
@@ -118,15 +96,76 @@ export function useTabs() {
     }
   }, [openTab])
 
+  // Navigate within the current tab (pushes history)
+  const navigateInTab = useCallback(async (tabId: string, name: string) => {
+    const files = await window.api.vault.list()
+    const file = files.find(f => f.name === name)
+    let targetPath: string
+    let targetName: string
+    if (file) {
+      targetPath = file.path; targetName = file.name
+    } else {
+      targetPath = await window.api.vault.create(name); targetName = name
+    }
+    const content = await window.api.vault.read(targetPath)
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId) return t
+      const newHistory = t.navHistory.slice(0, t.navIndex + 1)
+      // Don't duplicate if clicking a link to the current note
+      if (newHistory[newHistory.length - 1]?.path === targetPath) return t
+      newHistory.push({ path: targetPath, name: targetName })
+      return {
+        ...t, path: targetPath, name: targetName,
+        initialContent: content, isDirty: false,
+        cmState: null, scrollPos: 0,
+        contentVersion: t.contentVersion + 1,
+        navHistory: newHistory, navIndex: newHistory.length - 1
+      }
+    }))
+  }, [])
+
+  const goBack = useCallback(async (tabId: string) => {
+    const tab = tabsRef.current.find(t => t.id === tabId)
+    if (!tab || tab.navIndex <= 0) return
+    const newIndex = tab.navIndex - 1
+    const entry = tab.navHistory[newIndex]
+    const content = await window.api.vault.read(entry.path)
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId || t.navIndex <= 0) return t
+      return {
+        ...t, path: entry.path, name: entry.name,
+        initialContent: content, isDirty: false,
+        cmState: null, scrollPos: 0,
+        contentVersion: t.contentVersion + 1,
+        navIndex: newIndex
+      }
+    }))
+  }, [])
+
+  const goForward = useCallback(async (tabId: string) => {
+    const tab = tabsRef.current.find(t => t.id === tabId)
+    if (!tab || tab.navIndex >= tab.navHistory.length - 1) return
+    const newIndex = tab.navIndex + 1
+    const entry = tab.navHistory[newIndex]
+    const content = await window.api.vault.read(entry.path)
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId || t.navIndex >= t.navHistory.length - 1) return t
+      return {
+        ...t, path: entry.path, name: entry.name,
+        initialContent: content, isDirty: false,
+        cmState: null, scrollPos: 0,
+        contentVersion: t.contentVersion + 1,
+        navIndex: newIndex
+      }
+    }))
+  }, [])
+
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
       const idx = prev.findIndex(t => t.id === tabId)
       if (idx === -1) return prev
       const next = prev.filter(t => t.id !== tabId)
-      setActiveTabId(act => {
-        if (act !== tabId) return act
-        return (next[idx] ?? next[idx - 1] ?? null)?.id ?? null
-      })
+      setActiveTabId(act => act !== tabId ? act : (next[idx] ?? next[idx - 1] ?? null)?.id ?? null)
       return next
     })
   }, [])
@@ -145,32 +184,21 @@ export function useTabs() {
       setActiveTabId(act => {
         const idx = prev.findIndex(t => t.id === act)
         if (idx === -1) return act
-        const next = dir === 'next'
-          ? (idx + 1) % prev.length
-          : (idx - 1 + prev.length) % prev.length
+        const next = dir === 'next' ? (idx + 1) % prev.length : (idx - 1 + prev.length) % prev.length
         return prev[next].id
       })
       return prev
     })
   }, [])
 
-  const updateTabState = useCallback(
-    (tabId: string, content: string, cmState: EditorState, scrollPos: number) => {
-      setTabs(prev =>
-        prev.map(t =>
-          t.id === tabId
-            ? { ...t, isDirty: content !== t.initialContent, cmState, scrollPos }
-            : t
-        )
-      )
-    },
-    []
-  )
+  const updateTabState = useCallback((tabId: string, content: string, cmState: EditorState, scrollPos: number) => {
+    setTabs(prev => prev.map(t =>
+      t.id === tabId ? { ...t, isDirty: content !== t.initialContent, cmState, scrollPos } : t
+    ))
+  }, [])
 
   const markTabSaved = useCallback((tabId: string, content: string) => {
-    setTabs(prev =>
-      prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t)
-    )
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t))
   }, [])
 
   const activeTab = tabs.find(t => t.id === activeTabId) ?? null
@@ -178,6 +206,7 @@ export function useTabs() {
   return {
     tabs, activeTab, activeTabId,
     setActiveTabId, openTab, openTabByName,
+    navigateInTab, goBack, goForward,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   }

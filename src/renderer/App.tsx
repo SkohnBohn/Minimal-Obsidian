@@ -18,7 +18,8 @@ export default function App() {
 
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
-    openTab, openTabByName, closeTab, createNewTab, switchTab,
+    openTab, openTabByName, navigateInTab, goBack, goForward,
+    closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
 
@@ -41,9 +42,7 @@ export default function App() {
 
   useEffect(() => {
     if (!vaultReady) return
-    return window.api.vault.onChange(async () => {
-      setFiles(await window.api.vault.list())
-    })
+    return window.api.vault.onChange(async () => setFiles(await window.api.vault.list()))
   }, [vaultReady])
 
   const noteNames = files.map(f => f.name)
@@ -55,41 +54,50 @@ export default function App() {
       if (timer) clearTimeout(timer)
       const tab = tabsRef.current.find(t => t.id === tabId)
       if (!tab) return
-      saveTimers.current.set(
-        tabId,
-        setTimeout(async () => {
-          await window.api.vault.write(tab.path, content)
-          markTabSaved(tabId, content)
-          saveTimers.current.delete(tabId)
-        }, 500)
-      )
+      saveTimers.current.set(tabId, setTimeout(async () => {
+        await window.api.vault.write(tab.path, content)
+        markTabSaved(tabId, content)
+        saveTimers.current.delete(tabId)
+      }, 500))
     },
     [updateTabState, markTabSaved]
   )
 
+  // Left-click on link: navigate current tab (pushes history)
+  const handleNavigateNote = useCallback((name: string) => {
+    if (activeTabId) navigateInTab(activeTabId, name)
+    else openTabByName(name)
+  }, [activeTabId, navigateInTab, openTabByName])
+
+  // Right-click / cmd+click on link: open in new tab
   const handleOpenNote = useCallback((name: string) => openTabByName(name), [openTabByName])
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
 
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
-      if (meta && !e.shiftKey && e.key === 'o') {
+      if (meta && !e.shiftKey && !e.altKey && e.key === 'o') {
         e.preventDefault(); setShowSwitcher(v => !v)
-      } else if (meta && e.key === 'n') {
+      } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()
-      } else if (meta && e.key === 'w') {
+      } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
         e.preventDefault(); if (activeTabId) closeTab(activeTabId)
       } else if (meta && e.shiftKey && e.key === '[') {
         e.preventDefault(); switchTab('prev')
       } else if (meta && e.shiftKey && e.key === ']') {
         e.preventDefault(); switchTab('next')
+      } else if (meta && e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault(); if (activeTabId) goBack(activeTabId)
+      } else if (meta && e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault(); if (activeTabId) goForward(activeTabId)
       } else if (e.key === 'Escape') {
         setShowSwitcher(false); setShowSidebar(false)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTabId, closeTab, createNewTab, switchTab])
+  }, [activeTabId, closeTab, createNewTab, switchTab, goBack, goForward])
 
   if (!vaultReady) {
     return (
@@ -101,10 +109,11 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* Left rail */}
       <div className="rail">
         <button
           className={`rail-btn${showSidebar ? ' active' : ''}`}
-          title="Search (O button)"
+          title="Search"
           onClick={() => { setShowSidebar(v => !v); setShowGraph(false) }}
         >
           O
@@ -129,6 +138,7 @@ export default function App() {
         </button>
       </div>
 
+      {/* Main */}
       <div className="main">
         {showSidebar && (
           <SearchSidebar
@@ -150,13 +160,18 @@ export default function App() {
               onOpenNote={name => { handleOpenNote(name); setShowGraph(false) }}
             />
           ) : activeTab ? (
-            <Editor
-              key={activeTab.id}
-              tab={activeTab}
-              noteNames={noteNames}
-              onOpenNote={handleOpenNote}
-              onContentChange={handleContentChange}
-            />
+            <>
+              {/* Note title */}
+              <div className="note-title">{activeTab.name}</div>
+              <Editor
+                key={`${activeTab.id}-${activeTab.contentVersion}`}
+                tab={activeTab}
+                noteNames={noteNames}
+                onNavigateNote={handleNavigateNote}
+                onOpenNote={handleOpenNote}
+                onContentChange={handleContentChange}
+              />
+            </>
           ) : (
             <div className="editor-empty">⌘O to open a note</div>
           )}

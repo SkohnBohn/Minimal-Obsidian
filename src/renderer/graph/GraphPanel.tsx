@@ -1,17 +1,26 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { zoom as d3zoom, ZoomTransform } from 'd3-zoom'
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide,
+  SimulationNodeDatum, SimulationLinkDatum
+} from 'd3-force'
+import { zoom as d3zoom, zoomIdentity, ZoomTransform } from 'd3-zoom'
 import { select } from 'd3-selection'
 
-interface SimNode {
+interface GraphNode extends SimulationNodeDatum {
+  id: string
+  linkCount: number
+}
+
+interface GraphEdge {
+  source: string
+  target: string
+}
+
+interface RenderedNode {
   id: string
   x: number
   y: number
   linkCount: number
-}
-
-interface SimEdge {
-  source: string
-  target: string
 }
 
 interface GraphPanelProps {
@@ -24,13 +33,21 @@ const NODE_RADIUS = (lc: number) => 4 + 3 * Math.sqrt(lc)
 export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const nodesRef = useRef<SimNode[]>([])
-  const edgesRef = useRef<SimEdge[]>([])
-  const transformRef = useRef<ZoomTransform>(new (ZoomTransform as any)(1, 0, 0))
-  const hoverNodeRef = useRef<SimNode | null>(null)
+  const nodesRef = useRef<RenderedNode[]>([])
+  const edgesRef = useRef<GraphEdge[]>([])
+  const transformRef = useRef<ZoomTransform>(zoomIdentity)
+  const hoverNodeRef = useRef<RenderedNode | null>(null)
+  const activeNoteRef = useRef(activeNoteName)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null)
 
-  const draw = useCallback(() => {
+  // Keep activeNoteRef current and redraw on change
+  useEffect(() => {
+    activeNoteRef.current = activeNoteName
+    draw()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNoteName])
+
+  function draw() {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -39,6 +56,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
     const nodes = nodesRef.current
     const edges = edgesRef.current
     const hover = hoverNodeRef.current
+    const active = activeNoteRef.current
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.save()
@@ -47,14 +65,12 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
 
     const nodeMap = new Map(nodes.map(n => [n.id, n]))
     const neighbourSet: Set<string> | null = hover
-      ? new Set([
-          hover.id,
-          ...edges
-            .filter(e => e.source === hover.id || e.target === hover.id)
-            .flatMap(e => [e.source, e.target])
-        ])
+      ? new Set([hover.id, ...edges
+          .filter(e => e.source === hover.id || e.target === hover.id)
+          .flatMap(e => [e.source, e.target])])
       : null
 
+    // Edges
     for (const edge of edges) {
       const s = nodeMap.get(edge.source)
       const tgt = nodeMap.get(edge.target)
@@ -69,6 +85,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
       ctx.stroke()
     }
 
+    // Nodes
     for (const node of nodes) {
       const r = NODE_RADIUS(node.linkCount)
       const dimmed = neighbourSet && !neighbourSet.has(node.id)
@@ -77,9 +94,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
       ctx.fill()
-
-      if (node.id === activeNoteName) {
-        ctx.globalAlpha = dimmed ? 0.2 : 1.0
+      if (node.id === active) {
         ctx.strokeStyle = '#262626'
         ctx.lineWidth = 1.5
         ctx.stroke()
@@ -87,9 +102,9 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
     }
 
     ctx.restore()
-  }, [activeNoteName])
+  }
 
-  // Resize canvas to container
+  // Resize canvas
   useEffect(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
@@ -103,16 +118,19 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
     const ro = new ResizeObserver(resize)
     ro.observe(container)
     return () => ro.disconnect()
-  }, [draw])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  useEffect(() => { draw() }, [activeNoteName, draw])
-
-  // Load graph and run worker
+  // Load graph and run simulation (once on mount)
   useEffect(() => {
     let cancelled = false
-    async function loadGraph() {
-      const { nodes: rawNodes, edges: rawEdges } = await window.api.vault.links()
+    ;(async () => {
+      const { nodes: rawNodeIds, edges: rawEdges } = await window.api.vault.links()
       if (cancelled) return
+
+      const canvas = canvasRef.current
+      const w = canvas?.width ?? 800
+      const h = canvas?.height ?? 600
 
       const linkCounts = new Map<string, number>()
       for (const { source, target } of rawEdges) {
@@ -120,49 +138,58 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
         linkCounts.set(target, (linkCounts.get(target) ?? 0) + 1)
       }
 
-      const canvas = canvasRef.current
-      const w = canvas?.width ?? 800
-      const h = canvas?.height ?? 600
+      const simNodes: GraphNode[] = rawNodeIds.map((id, i) => ({
+        id,
+        linkCount: linkCounts.get(id) ?? 0,
+        // Spread initial positions in a circle to help the sim converge
+        x: w / 2 + Math.cos((i / rawNodeIds.length) * Math.PI * 2) * 150,
+        y: h / 2 + Math.sin((i / rawNodeIds.length) * Math.PI * 2) * 150
+      }))
 
-      const worker = new Worker(
-        new URL('./graphWorker.ts', import.meta.url),
-        { type: 'module' }
-      )
+      const idxMap = new Map(simNodes.map((n, i) => [n.id, i]))
+      const simLinks = rawEdges
+        .map(e => ({ source: idxMap.get(e.source) ?? 0, target: idxMap.get(e.target) ?? 0 }))
+        .filter(l => l.source !== l.target)
 
-      worker.postMessage({
-        nodes: rawNodes.map(id => ({ id, linkCount: linkCounts.get(id) ?? 0 })),
-        edges: rawEdges,
-        width: w,
-        height: h
-      })
+      const sim = forceSimulation(simNodes)
+        .force('charge', forceManyBody().strength(-60))
+        .force('link', forceLink(simLinks).distance(60).iterations(2))
+        .force('center', forceCenter(w / 2, h / 2))
+        .force('collide', forceCollide<GraphNode>(d => NODE_RADIUS(d.linkCount) + 2))
+        .stop()
 
-      worker.onmessage = (e) => {
-        if (cancelled) return
-        nodesRef.current = e.data.nodes
-        edgesRef.current = e.data.edges
-        draw()
-        worker.terminate()
+      // Run synchronously until stable
+      for (let i = 0; i < 300; i++) {
+        sim.tick()
+        if (sim.alpha() < 0.001) break
       }
-    }
-    loadGraph()
+
+      if (cancelled) return
+
+      nodesRef.current = simNodes.map(n => ({
+        id: n.id, linkCount: n.linkCount,
+        x: n.x ?? w / 2, y: n.y ?? h / 2
+      }))
+      edgesRef.current = rawEdges
+      draw()
+    })()
     return () => { cancelled = true }
-  }, [draw])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // d3-zoom
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const zoomBehavior = d3zoom<HTMLCanvasElement, unknown>()
+    const zb = d3zoom<HTMLCanvasElement, unknown>()
       .scaleExtent([0.1, 8])
-      .on('zoom', e => {
-        transformRef.current = e.transform
-        draw()
-      })
-    select(canvas).call(zoomBehavior)
+      .on('zoom', e => { transformRef.current = e.transform; draw() })
+    select(canvas).call(zb)
     return () => { select(canvas).on('.zoom', null) }
-  }, [draw])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const getNodeAt = useCallback((ex: number, ey: number): SimNode | null => {
+  function getNodeAt(ex: number, ey: number): RenderedNode | null {
     const t = transformRef.current
     const x = (ex - t.x) / t.k
     const y = (ey - t.y) / t.k
@@ -171,27 +198,27 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
       if ((x - node.x) ** 2 + (y - node.y) ** 2 <= r * r) return node
     }
     return null
-  }, [])
+  }
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = canvasRef.current!.getBoundingClientRect()
     const node = getNodeAt(e.clientX - rect.left, e.clientY - rect.top)
     hoverNodeRef.current = node
     setTooltip(node ? { x: e.clientX - rect.left + 8, y: e.clientY - rect.top - 20, name: node.id } : null)
     draw()
-  }, [draw, getNodeAt])
+  }
 
-  const handleMouseLeave = useCallback(() => {
+  function handleMouseLeave() {
     hoverNodeRef.current = null
     setTooltip(null)
     draw()
-  }, [draw])
+  }
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  function handleClick(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = canvasRef.current!.getBoundingClientRect()
     const node = getNodeAt(e.clientX - rect.left, e.clientY - rect.top)
     if (node) onOpenNote(node.id)
-  }, [getNodeAt, onOpenNote])
+  }
 
   return (
     <div ref={containerRef} className="graph-panel">
