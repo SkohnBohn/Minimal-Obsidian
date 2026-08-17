@@ -425,6 +425,23 @@ input {
   white-space: nowrap;
 }
 
+/* Save-error banner */
+.save-error {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #7a1a1a;
+  color: #f5ebe0;
+  padding: 8px 18px;
+  font-size: 13px;
+  z-index: 500;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  pointer-events: all;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

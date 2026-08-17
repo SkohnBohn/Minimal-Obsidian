@@ -63,25 +63,53 @@ const wikilinkDecorationPlugin = ViewPlugin.fromClass(
   { decorations: v => v.decorations }
 )
 
+// ── Position-based range index (DOM-independent click detection) ───────────
+//
+// Instead of relying on closest('[data-target]') — which is fragile if CM
+// splits the decorated span into multiple DOM nodes — we maintain a StateField
+// that maps document positions to wikilink targets. The click handler asks CM
+// for the doc position of the mouse coordinates and does a plain range lookup.
+
+interface WikiRange { from: number; to: number; target: string }
+
+function buildWikiRanges(state: EditorState): WikiRange[] {
+  const doc = state.doc.toString()
+  const re = new RegExp(WIKILINK_RE.source, 'g')
+  const out: WikiRange[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(doc)) !== null)
+    out.push({ from: m.index, to: m.index + m[0].length, target: m[1].trim() })
+  return out
+}
+
+const wikilinkRangesField = StateField.define<WikiRange[]>({
+  create: (state) => buildWikiRanges(state),
+  update(ranges, tr) {
+    return tr.docChanged ? buildWikiRanges(tr.state) : ranges
+  }
+})
+
+function targetAtEvent(e: MouseEvent, view: EditorView): string | null {
+  const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
+  if (pos == null) return null
+  const range = view.state.field(wikilinkRangesField).find(r => pos >= r.from && pos <= r.to)
+  return range?.target ?? null
+}
+
 // ── Click handlers ─────────────────────────────────────────────────────────
 
 function makeClickHandlers(onNavigate: (n: string) => void, onOpenNewTab: (n: string) => void) {
   return EditorView.domEventHandlers({
-    click(e) {
-      const el = (e.target as HTMLElement).closest('[data-target]') as HTMLElement | null
-      if (!el) return false
-      const target = el.dataset.target
+    click(e, view) {
+      const target = targetAtEvent(e, view)
       if (!target) return false
       e.preventDefault()
-      // Cmd/Ctrl+click opens new tab; plain click navigates in current tab
       if (e.metaKey || e.ctrlKey) onOpenNewTab(target)
       else onNavigate(target)
       return true
     },
-    contextmenu(e) {
-      const el = (e.target as HTMLElement).closest('[data-target]') as HTMLElement | null
-      if (!el) return false
-      const target = el.dataset.target
+    contextmenu(e, view) {
+      const target = targetAtEvent(e, view)
       if (!target) return false
       e.preventDefault()
       onOpenNewTab(target)
@@ -132,6 +160,7 @@ const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) =>
 export function wikilinkExtension(opts: WikiLinkExtOptions) {
   return [
     noteNamesField.init(() => opts.noteNames),
+    wikilinkRangesField,
     doubleBracketRule,
     wikilinkDecorationPlugin,
     makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),

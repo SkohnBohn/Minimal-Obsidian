@@ -26,10 +26,20 @@ export default function App() {
   } = useTabs()
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-  // Tracks in-flight writes started by handleEditorUnmount so the quit flush can await them.
   const pendingUnmountWrites = useRef<Promise<void>[]>([])
   const tabsRef = useRef(tabs)
   useEffect(() => { tabsRef.current = tabs }, [tabs])
+
+  // ── Save-error banner ────────────────────────────────────────────────────
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const errorBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showSaveError = useCallback((filePath: string, err: unknown) => {
+    console.error('Save failed:', filePath, err)
+    const name = filePath.split('/').pop() ?? filePath
+    setSaveError(`Could not save "${name}" — check disk space or permissions`)
+    if (errorBannerTimer.current) clearTimeout(errorBannerTimer.current)
+    errorBannerTimer.current = setTimeout(() => setSaveError(null), 6000)
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -59,31 +69,50 @@ export default function App() {
       const tab = tabsRef.current.find(t => t.id === tabId)
       if (!tab) return
       saveTimers.current.set(tabId, setTimeout(async () => {
-        await window.api.vault.write(tab.path, content)
-        markTabSaved(tabId, content)
         saveTimers.current.delete(tabId)
+        try {
+          await window.api.vault.write(tab.path, content)
+          markTabSaved(tabId, content)
+        } catch (err) {
+          showSaveError(tab.path, err)
+        }
       }, 500))
     },
-    [updateTabState, markTabSaved]
+    [updateTabState, markTabSaved, showSaveError]
   )
 
   const handleEditorUnmount = useCallback(
     (tabId: string, capturedPath: string, content: string) => {
-      // Cancel the debounced save — the unmount write supersedes it.
       const timer = saveTimers.current.get(tabId)
       if (timer) { clearTimeout(timer); saveTimers.current.delete(tabId) }
-      // Write to the exact path this editor was mounted with. We deliberately do NOT
-      // call updateTabState here — the tab may have already navigated to a new file
-      // and we must not overwrite its new cmState / isDirty with old editor content.
+      // Write to the path captured at editor mount time. Do NOT call updateTabState —
+      // the tab may have already navigated to a different file.
       const write = window.api.vault.write(capturedPath, content)
-        .catch(err => console.error('Editor unmount save failed:', capturedPath, err))
+        .catch(err => showSaveError(capturedPath, err))
       pendingUnmountWrites.current.push(write)
       write.finally(() => {
         pendingUnmountWrites.current = pendingUnmountWrites.current.filter(p => p !== write)
       })
     },
-    []
+    [showSaveError]
   )
+
+  const handleCloseTab = useCallback(async (tabId: string) => {
+    // If there is a pending debounced write, cancel it and flush now so the content
+    // is on disk before the tab (and its cmState) is removed from state.
+    const timer = saveTimers.current.get(tabId)
+    const tab = tabsRef.current.find(t => t.id === tabId)
+    if (timer && tab?.path && tab.cmState) {
+      clearTimeout(timer)
+      saveTimers.current.delete(tabId)
+      try {
+        await window.api.vault.write(tab.path, tab.cmState.doc.toString())
+      } catch (err) {
+        showSaveError(tab.path, err)
+      }
+    }
+    closeTab(tabId)
+  }, [closeTab, showSaveError])
 
   const handleNavigateNote = useCallback((name: string) => {
     if (activeTabId) navigateInTab(activeTabId, name)
@@ -129,7 +158,7 @@ export default function App() {
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
-        e.preventDefault(); if (activeTabId) closeTab(activeTabId)
+        e.preventDefault(); if (activeTabId) handleCloseTab(activeTabId)
       } else if (meta && e.shiftKey && e.key === '[') {
         e.preventDefault(); switchTab('prev')
       } else if (meta && e.shiftKey && e.key === ']') {
@@ -144,7 +173,7 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTabId, closeTab, createNewTab, switchTab, goBack, goForward])
+  }, [activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward])
 
   if (!vaultReady) {
     return (
@@ -202,7 +231,7 @@ export default function App() {
             tabs={tabs}
             activeTabId={activeTabId}
             onActivate={setActiveTabId}
-            onClose={closeTab}
+            onClose={handleCloseTab}
           />
 
           <div className="editor-pane">
@@ -257,6 +286,12 @@ export default function App() {
           onOpen={name => handleOpenNote(name)}
           onClose={() => setShowSwitcher(false)}
         />
+      )}
+
+      {saveError && (
+        <div className="save-error" onClick={() => setSaveError(null)} title="Click to dismiss">
+          ⚠ {saveError}
+        </div>
       )}
     </div>
   )
