@@ -28,6 +28,11 @@ interface GraphPanelProps {
   onOpenNote: (name: string) => void
 }
 
+// Persists across tab switches for the lifetime of the app session
+let cachedNodes: RenderedNode[] | null = null
+let cachedEdges: GraphEdge[] | null = null
+let cachedTransform: { x: number; y: number; k: number } | null = null
+
 const NODE_RADIUS = (lc: number) => 4 + 3 * Math.sqrt(lc)
 
 export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelProps) {
@@ -121,59 +126,79 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load graph and run simulation (once on mount)
+  // Load graph — restore from cache if available, otherwise simulate
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      const { nodes: rawNodeIds, edges: rawEdges } = await window.api.vault.links()
-      if (cancelled) return
 
-      const canvas = canvasRef.current
-      const w = canvas?.width ?? 800
-      const h = canvas?.height ?? 600
-
-      const linkCounts = new Map<string, number>()
-      for (const { source, target } of rawEdges) {
-        linkCounts.set(source, (linkCounts.get(source) ?? 0) + 1)
-        linkCounts.set(target, (linkCounts.get(target) ?? 0) + 1)
+    if (cachedNodes && cachedEdges) {
+      nodesRef.current = cachedNodes
+      edgesRef.current = cachedEdges
+      if (cachedTransform) {
+        transformRef.current = zoomIdentity
+          .translate(cachedTransform.x, cachedTransform.y)
+          .scale(cachedTransform.k)
       }
-
-      const simNodes: GraphNode[] = rawNodeIds.map((id, i) => ({
-        id,
-        linkCount: linkCounts.get(id) ?? 0,
-        // Spread initial positions in a circle to help the sim converge
-        x: w / 2 + Math.cos((i / rawNodeIds.length) * Math.PI * 2) * 150,
-        y: h / 2 + Math.sin((i / rawNodeIds.length) * Math.PI * 2) * 150
-      }))
-
-      const idxMap = new Map(simNodes.map((n, i) => [n.id, i]))
-      const simLinks = rawEdges
-        .map(e => ({ source: idxMap.get(e.source) ?? 0, target: idxMap.get(e.target) ?? 0 }))
-        .filter(l => l.source !== l.target)
-
-      const sim = forceSimulation(simNodes)
-        .force('charge', forceManyBody().strength(-60))
-        .force('link', forceLink(simLinks).distance(60).iterations(2))
-        .force('center', forceCenter(w / 2, h / 2))
-        .force('collide', forceCollide<GraphNode>(d => NODE_RADIUS(d.linkCount) + 2))
-        .stop()
-
-      // Run synchronously until stable
-      for (let i = 0; i < 300; i++) {
-        sim.tick()
-        if (sim.alpha() < 0.001) break
-      }
-
-      if (cancelled) return
-
-      nodesRef.current = simNodes.map(n => ({
-        id: n.id, linkCount: n.linkCount,
-        x: n.x ?? w / 2, y: n.y ?? h / 2
-      }))
-      edgesRef.current = rawEdges
       draw()
-    })()
-    return () => { cancelled = true }
+    } else {
+      ;(async () => {
+        const { nodes: rawNodeIds, edges: rawEdges } = await window.api.vault.links()
+        if (cancelled) return
+
+        const canvas = canvasRef.current
+        const w = canvas?.width ?? 800
+        const h = canvas?.height ?? 600
+
+        const linkCounts = new Map<string, number>()
+        for (const { source, target } of rawEdges) {
+          linkCounts.set(source, (linkCounts.get(source) ?? 0) + 1)
+          linkCounts.set(target, (linkCounts.get(target) ?? 0) + 1)
+        }
+
+        const simNodes: GraphNode[] = rawNodeIds.map((id, i) => ({
+          id,
+          linkCount: linkCounts.get(id) ?? 0,
+          x: w / 2 + Math.cos((i / rawNodeIds.length) * Math.PI * 2) * 150,
+          y: h / 2 + Math.sin((i / rawNodeIds.length) * Math.PI * 2) * 150
+        }))
+
+        const idxMap = new Map(simNodes.map((n, i) => [n.id, i]))
+        const simLinks = rawEdges
+          .map(e => ({ source: idxMap.get(e.source) ?? 0, target: idxMap.get(e.target) ?? 0 }))
+          .filter(l => l.source !== l.target)
+
+        const sim = forceSimulation(simNodes)
+          .force('charge', forceManyBody().strength(-60))
+          .force('link', forceLink(simLinks).distance(60).iterations(2))
+          .force('center', forceCenter(w / 2, h / 2))
+          .force('collide', forceCollide<GraphNode>(d => NODE_RADIUS(d.linkCount) + 2))
+          .stop()
+
+        for (let i = 0; i < 300; i++) {
+          sim.tick()
+          if (sim.alpha() < 0.001) break
+        }
+
+        if (cancelled) return
+
+        nodesRef.current = simNodes.map(n => ({
+          id: n.id, linkCount: n.linkCount,
+          x: n.x ?? w / 2, y: n.y ?? h / 2
+        }))
+        edgesRef.current = rawEdges
+        draw()
+      })()
+    }
+
+    return () => {
+      cancelled = true
+      // Save state so it survives tab switches
+      if (nodesRef.current.length) {
+        cachedNodes = nodesRef.current
+        cachedEdges = edgesRef.current
+        const t = transformRef.current
+        cachedTransform = { x: t.x, y: t.y, k: t.k }
+      }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

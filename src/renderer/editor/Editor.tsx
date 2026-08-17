@@ -29,9 +29,13 @@ export default function Editor({ tab, noteNames, onNavigateNote, onOpenNote, onC
     const view = new EditorView({ state: initialState, parent: containerRef.current })
     viewRef.current = view
 
-    requestAnimationFrame(() => {
-      if (tab.scrollPos) view.scrollDOM.scrollTop = tab.scrollPos
-    })
+    // Restore scroll after CM has finished measuring content (RAF alone is too early for long docs)
+    if (tab.scrollPos) {
+      view.requestMeasure({
+        read: () => null,
+        write: () => { view.scrollDOM.scrollTop = tab.scrollPos }
+      })
+    }
 
     return () => {
       if (viewRef.current) {
