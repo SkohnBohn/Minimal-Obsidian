@@ -1,0 +1,147 @@
+import {
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
+  Decoration,
+  DecorationSet
+} from '@codemirror/view'
+import {
+  StateField,
+  StateEffect,
+  Range,
+  EditorState
+} from '@codemirror/state'
+import {
+  autocompletion,
+  CompletionContext,
+  CompletionResult
+} from '@codemirror/autocomplete'
+
+// ── Public types ───────────────────────────────────────────────────────────
+
+export interface WikiLinkExtOptions {
+  noteNames: string[]
+  onOpen: (name: string) => void
+}
+
+// ── Note-names state field (updated reactively) ────────────────────────────
+
+export const setNoteNames = StateEffect.define<string[]>()
+
+export const noteNamesField = StateField.define<string[]>({
+  create: () => [],
+  update(names, tr) {
+    for (const e of tr.effects) if (e.is(setNoteNames)) return e.value
+    return names
+  }
+})
+
+// ── Decoration builder ─────────────────────────────────────────────────────
+
+const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
+
+function buildDecorations(state: EditorState): DecorationSet {
+  const names = new Set(state.field(noteNamesField))
+  const ranges: Range<Decoration>[] = []
+  const doc = state.doc.toString()
+  const re = new RegExp(WIKILINK_RE.source, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(doc)) !== null) {
+    const target = m[1].trim()
+    const cls = names.has(target) ? 'cm-wikilink-existing' : 'cm-wikilink-dead'
+    ranges.push(
+      Decoration.mark({
+        class: cls,
+        attributes: { 'data-target': target, style: 'cursor:pointer' }
+      }).range(m.index, m.index + m[0].length)
+    )
+  }
+  return Decoration.set(ranges, true)
+}
+
+// ── Decoration plugin ──────────────────────────────────────────────────────
+
+const wikilinkDecorationPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) { this.decorations = buildDecorations(view.state) }
+    update(update: ViewUpdate) {
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.transactions.some(tr => tr.effects.some(e => e.is(setNoteNames)))
+      ) {
+        this.decorations = buildDecorations(update.state)
+      }
+    }
+  },
+  { decorations: v => v.decorations }
+)
+
+// ── Click handler ──────────────────────────────────────────────────────────
+
+function makeClickHandler(onOpen: (name: string) => void) {
+  return EditorView.domEventHandlers({
+    click(e) {
+      const el = (e.target as HTMLElement).closest('[data-target]') as HTMLElement | null
+      if (!el) return false
+      const target = el.dataset.target
+      if (target) { e.preventDefault(); onOpen(target) }
+      return !!target
+    }
+  })
+}
+
+// ── Autocompletion ─────────────────────────────────────────────────────────
+
+const wikilinkCompletion = autocompletion({
+  override: [
+    (ctx: CompletionContext): CompletionResult | null => {
+      const before = ctx.state.sliceDoc(0, ctx.pos)
+      const open = before.lastIndexOf('[[')
+      if (open === -1) return null
+      const text = before.slice(open + 2)
+      if (text.includes('|') || text.includes(']]') || text.includes('[')) return null
+      const names = ctx.state.field(noteNamesField)
+      const query = text.toLowerCase()
+      const matches = names
+        .filter(n => n.toLowerCase().includes(query))
+        .slice(0, 8)
+      if (!matches.length) return null
+      return {
+        from: open + 2,
+        options: matches.map(n => ({
+          label: n,
+          apply: (view, _c, from, to) => {
+            view.dispatch({ changes: { from, to, insert: n } })
+          }
+        }))
+      }
+    }
+  ]
+})
+
+// ── Input rule: second [ → close with ]] ──────────────────────────────────
+
+const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
+  if (insert !== '[') return false
+  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
+  if (before !== '[') return false
+  view.dispatch({
+    changes: { from, to, insert: '[]]' },
+    selection: { anchor: from + 1 }
+  })
+  return true
+})
+
+// ── Public factory ─────────────────────────────────────────────────────────
+
+export function wikilinkExtension(opts: WikiLinkExtOptions) {
+  return [
+    noteNamesField.init(() => opts.noteNames),
+    doubleBracketRule,
+    wikilinkDecorationPlugin,
+    makeClickHandler(opts.onOpen),
+    wikilinkCompletion
+  ]
+}

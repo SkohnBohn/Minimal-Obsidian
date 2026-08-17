@@ -1,0 +1,15 @@
+:root {
+  --bg:       #fcf6e3;
+  --bg-inset: #f3ecda;
+  --ink:      #262626;
+  --stone:    #595959;
+  --ash:      #e6e5e5;
+  --link:     #8b7040;
+
+  --rail-w:      32px;
+  --tab-h:       36px;
+  --sidebar-w:   12.5vw;
+  --max-content: 720px;
+  --font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono:        'SF Mono', 'Fira Mono', 'Consolas', monospace;
+}

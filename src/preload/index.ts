@@ -1,0 +1,51 @@
+import { contextBridge, ipcRenderer } from 'electron'
+
+export interface FileEntry {
+  name: string
+  path: string
+  mtime: number
+}
+
+export interface SearchResult {
+  path: string
+  name: string
+  snippet: string
+}
+
+export interface LinkGraph {
+  nodes: string[]
+  edges: Array<{ source: string; target: string }>
+}
+
+export interface VaultChangeEvent {
+  type: 'add' | 'change' | 'unlink'
+  path: string
+  name: string
+}
+
+const api = {
+  vault: {
+    open: (): Promise<FileEntry[] | null> => ipcRenderer.invoke('vault:open'),
+    list: (): Promise<FileEntry[]> => ipcRenderer.invoke('vault:list'),
+    read: (filePath: string): Promise<string> => ipcRenderer.invoke('vault:read', filePath),
+    write: (filePath: string, content: string): Promise<void> =>
+      ipcRenderer.invoke('vault:write', filePath, content),
+    create: (name: string): Promise<string> => ipcRenderer.invoke('vault:create', name),
+    links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
+    onChange: (cb: (event: VaultChangeEvent) => void) => {
+      const handler = (_: unknown, event: VaultChangeEvent) => cb(event)
+      ipcRenderer.on('vault:changed', handler)
+      return () => ipcRenderer.removeListener('vault:changed', handler)
+    }
+  },
+  search: {
+    query: (q: string): Promise<SearchResult[]> => ipcRenderer.invoke('search:query', q)
+  },
+  settings: {
+    get: (key: string): Promise<unknown> => ipcRenderer.invoke('app:settings:get', key),
+    set: (key: string, value: unknown): Promise<void> =>
+      ipcRenderer.invoke('app:settings:set', key, value)
+  }
+}
+
+contextBridge.exposeInMainWorld('api', api)
