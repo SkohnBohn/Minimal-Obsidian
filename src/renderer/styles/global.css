@@ -704,7 +704,8 @@ input {
   cursor: pointer;
   background: transparent;
   transition: color 80ms;
-  align-self: flex-start;
+  width: 100%;
+  text-align: center;
 }
 
 .vault-apply-btn:hover {
