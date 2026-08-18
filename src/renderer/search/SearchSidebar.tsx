@@ -3,7 +3,7 @@ import React, { useCallback } from 'react'
 interface SearchResult {
   path: string
   name: string
-  snippet: string
+  snippets: string[]
 }
 
 interface SearchSidebarProps {
@@ -39,10 +39,13 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
             onClick={() => onOpen(r.path, r.name)}
           >
             <div className="sidebar-result-title">{r.name}</div>
-            <div
-              className="sidebar-result-snippet"
-              dangerouslySetInnerHTML={{ __html: r.snippet }}
-            />
+            {r.snippets.map((s, i) => (
+              <div
+                key={i}
+                className="sidebar-result-snippet"
+                dangerouslySetInnerHTML={{ __html: s }}
+              />
+            ))}
           </div>
         ))}
       </div>

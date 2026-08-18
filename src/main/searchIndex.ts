@@ -3,7 +3,7 @@ import FlexSearch from 'flexsearch'
 export interface SearchResult {
   path: string
   name: string
-  snippet: string
+  snippets: string[]
 }
 
 interface DocRecord {
@@ -64,26 +64,36 @@ export function removeFile(path: string): void {
   }
 }
 
-function buildSnippet(content: string, query: string): string {
+function buildSnippets(content: string, query: string, maxHits = 3): string[] {
   const lower = content.toLowerCase()
-  const idx = lower.indexOf(query.toLowerCase())
-  if (idx === -1) {
-    // Matched via another field (e.g. title) — show first non-empty line as preview
-    return (content.split('\n').find(l => l.trim()) ?? '').slice(0, 120)
+  const q = query.toLowerCase()
+  const results: string[] = []
+  let searchFrom = 0
+
+  while (results.length < maxHits) {
+    const idx = lower.indexOf(q, searchFrom)
+    if (idx === -1) break
+    const lineStart = content.lastIndexOf('\n', idx - 1) + 1
+    const lineEndRaw = content.indexOf('\n', idx)
+    const lineEnd = lineEndRaw === -1 ? content.length : lineEndRaw
+    const start = Math.max(lineStart, idx - 30)
+    const end = Math.min(lineEnd, idx + query.length + 90)
+    const pre = start > lineStart ? '…' : ''
+    const post = end < lineEnd ? '…' : ''
+    const before = content.slice(start, idx)
+    const match = content.slice(idx, idx + query.length)
+    const after = content.slice(idx + query.length, end)
+    results.push(`${pre}${before}<mark>${match}</mark>${after}${post}`)
+    searchFrom = lineEnd + 1  // skip to next line — no two snippets from the same line
   }
-  // Scope to the line that contains the match so the highlight is always visible
-  const lineStart = content.lastIndexOf('\n', idx - 1) + 1
-  const lineEndRaw = content.indexOf('\n', idx)
-  const lineEnd = lineEndRaw === -1 ? content.length : lineEndRaw
-  // Short pre-context so the marked word falls in the first visible line
-  const start = Math.max(lineStart, idx - 30)
-  const end = Math.min(lineEnd, idx + query.length + 90)
-  const pre = start > lineStart ? '…' : ''
-  const post = end < lineEnd ? '…' : ''
-  const before = content.slice(start, idx)
-  const match = content.slice(idx, idx + query.length)
-  const after = content.slice(idx + query.length, end)
-  return `${pre}${before}<mark>${match}</mark>${after}${post}`
+
+  if (results.length === 0) {
+    // Matched via title — show first non-empty line as plain preview
+    const first = (content.split('\n').find(l => l.trim()) ?? '').slice(0, 120)
+    if (first) results.push(first)
+  }
+
+  return results
 }
 
 export async function search(query: string, includeSources: boolean, limit = 20): Promise<SearchResult[]> {
@@ -102,7 +112,7 @@ export async function search(query: string, includeSources: boolean, limit = 20)
         seen.add(doc.path)
         const snippetSrc = doc.content.toLowerCase().includes(query.toLowerCase())
           ? doc.content : (doc.sourcesContent || doc.content)
-        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(snippetSrc, query) })
+        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query) })
       }
     }
   }
@@ -117,7 +127,7 @@ export async function search(query: string, includeSources: boolean, limit = 20)
         seen.add(doc.path)
         const snippetSrc = (includeSources && !doc.content.toLowerCase().includes(q))
           ? doc.sourcesContent : doc.content
-        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(snippetSrc, query) })
+        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query) })
       }
     }
   }

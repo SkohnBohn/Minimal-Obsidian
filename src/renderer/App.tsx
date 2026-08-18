@@ -18,7 +18,7 @@ export default function App() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{path:string;name:string;snippet:string}[]>([])
+  const [searchResults, setSearchResults] = useState<{path:string;name:string;snippets:string[]}[]>([])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleSearchQuery = useCallback((q: string) => {
