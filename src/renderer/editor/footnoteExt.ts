@@ -1,5 +1,5 @@
-import { EditorView, showTooltip, Tooltip } from '@codemirror/view'
-import { StateField, EditorState } from '@codemirror/state'
+import { EditorView, showTooltip, Tooltip, ViewPlugin, ViewUpdate } from '@codemirror/view'
+import { StateField, EditorState, StateEffect } from '@codemirror/state'
 import type { Command } from '@codemirror/view'
 
 const FOOTNOTE_REF_RE = /\[\^(\d+)\]/g
@@ -84,6 +84,68 @@ function getTooltips(state: EditorState): readonly Tooltip[] {
   return []
 }
 
+// Effect carrying the `pos` (from) of the ref whose tooltip should be suppressed
+const suppressTooltip = StateEffect.define<number>()
+
+type TooltipFieldState = { tooltips: readonly Tooltip[]; suppressedPos: number }
+
+const footnoteTooltipField = StateField.define<TooltipFieldState>({
+  create: state => ({ tooltips: getTooltips(state), suppressedPos: -1 }),
+  update({ tooltips, suppressedPos }, tr) {
+    let newSuppressedPos = suppressedPos
+
+    for (const e of tr.effects) {
+      if (e.is(suppressTooltip)) newSuppressedPos = e.value
+    }
+
+    if (!tr.docChanged && !tr.selectionSet) return { tooltips, suppressedPos: newSuppressedPos }
+
+    const newTooltips = getTooltips(tr.state)
+    // If cursor moved to a different [^N], reset suppression
+    if (newTooltips.length > 0 && newTooltips[0].pos !== newSuppressedPos) {
+      newSuppressedPos = -1
+    } else if (newTooltips.length === 0) {
+      newSuppressedPos = -1
+    }
+    return { tooltips: newTooltips, suppressedPos: newSuppressedPos }
+  },
+  provide: f => showTooltip.computeN([f], state => {
+    const { tooltips, suppressedPos } = state.field(f)
+    if (suppressedPos >= 0 && tooltips.length > 0 && tooltips[0].pos === suppressedPos) return []
+    return tooltips
+  })
+})
+
+// ViewPlugin: starts a 2s timer when a tooltip appears; fires suppressTooltip after 2s
+const footnoteTooltipTimer = ViewPlugin.fromClass(class {
+  timer: ReturnType<typeof setTimeout> | null = null
+  view: EditorView
+
+  constructor(view: EditorView) { this.view = view }
+
+  update(update: ViewUpdate) {
+    const { tooltips, suppressedPos } = update.state.field(footnoteTooltipField)
+    const visible = tooltips.length > 0 && (suppressedPos < 0 || tooltips[0].pos !== suppressedPos)
+
+    if (visible && !this.timer) {
+      const pos = tooltips[0].pos
+      this.timer = setTimeout(() => {
+        this.timer = null
+        if (this.view.dom.isConnected) {
+          this.view.dispatch({ effects: suppressTooltip.of(pos) })
+        }
+      }, 2000)
+    } else if (!visible && this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+  }
+
+  destroy() {
+    if (this.timer) clearTimeout(this.timer)
+  }
+})
+
 // Enter inside [^N] jumps cursor to end of the matching [^N]: definition line
 export const footnoteEnterCommand: Command = (view) => {
   const { state } = view
@@ -106,11 +168,4 @@ export const footnoteEnterCommand: Command = (view) => {
   return false
 }
 
-export const footnoteTooltipExt = StateField.define<readonly Tooltip[]>({
-  create: getTooltips,
-  update(tts, tr) {
-    if (!tr.docChanged && !tr.selectionSet) return tts
-    return getTooltips(tr.state)
-  },
-  provide: f => showTooltip.computeN([f], state => state.field(f))
-})
+export const footnoteTooltipExt = [footnoteTooltipField, footnoteTooltipTimer]

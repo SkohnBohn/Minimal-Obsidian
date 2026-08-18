@@ -222,21 +222,21 @@ export default function App() {
         <div className="rail">
           <button
             className="rail-btn"
-            title="Shortcuts"
+            data-tip="shortcuts"
             onClick={openHotkeysTab}
           >
             ?
           </button>
           <button
             className="rail-btn"
-            title="Graph view"
+            data-tip="graph"
             onClick={openGraphTab}
           >
             ⬡
           </button>
           <button
             className="rail-btn"
-            title="Settings"
+            data-tip="settings"
             style={{ marginTop: 'auto' }}
             onClick={openSettingsTab}
           >
@@ -244,7 +244,7 @@ export default function App() {
           </button>
           <button
             className="rail-btn"
-            title="Open vault folder"
+            data-tip="vault"
             style={{ fontSize: '10px' }}
             onClick={async () => {
               const fl = await window.api.vault.open()
