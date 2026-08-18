@@ -16,7 +16,6 @@ export default function VaultPanel({ onVaultSet }: Props) {
     window.api.vault.getPath().then(p => {
       setCurrentPath(p)
     })
-    inputRef.current?.focus()
   }, [])
 
   async function apply() {
@@ -30,27 +29,29 @@ export default function VaultPanel({ onVaultSet }: Props) {
 
   return (
     <div className="vault-panel">
-      <div className="vault-panel-section">current vault path</div>
+      <div className="vault-panel-inner">
+        <div className="vault-panel-section">current vault path</div>
 
-      {currentPath && (
-        <div className="vault-panel-path">{currentPath}</div>
-      )}
+        {currentPath && (
+          <div className="vault-panel-path">{currentPath}</div>
+        )}
 
-      <input
-        ref={inputRef}
-        className="vault-path-input"
-        value={pathInput}
-        onChange={e => { setPathInput(e.target.value); setError(null) }}
-        onKeyDown={e => { if (e.key === 'Enter') apply() }}
-        placeholder="set vault path"
-        spellCheck={false}
-      />
+        <input
+          ref={inputRef}
+          className="vault-path-input"
+          value={pathInput}
+          onChange={e => { setPathInput(e.target.value); setError(null) }}
+          onKeyDown={e => { if (e.key === 'Enter') apply() }}
+          placeholder="set vault path"
+          spellCheck={false}
+        />
 
-      {error && (
-        <div className="vault-panel-error">{error}</div>
-      )}
+        {error && (
+          <div className="vault-panel-error">{error}</div>
+        )}
 
-      <button className="vault-apply-btn" onClick={apply}>set</button>
+        <button className="vault-apply-btn" onClick={apply}>set</button>
+      </div>
     </div>
   )
 }

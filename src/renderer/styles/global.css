@@ -247,9 +247,10 @@ input {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 130px;
-  font-size: 12.5px;
+  font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .tab-close {
@@ -651,15 +652,13 @@ input {
   flex-direction: column;
   align-items: center;
   padding-top: 48px;
-  gap: 14px;
 }
 
-.vault-panel-section,
-.vault-panel-path,
-.vault-path-input,
-.vault-panel-error,
-.vault-apply-btn {
-  width: 220px;
+.vault-panel-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 340px;
 }
 
 .vault-panel-section {
@@ -701,10 +700,11 @@ input {
   letter-spacing: 0.06em;
   color: var(--stone);
   border: 1px solid var(--ash);
-  padding: 3px 14px;
+  padding: 3px 10px;
   cursor: pointer;
   background: transparent;
   transition: color 80ms;
+  align-self: flex-start;
 }
 
 .vault-apply-btn:hover {
