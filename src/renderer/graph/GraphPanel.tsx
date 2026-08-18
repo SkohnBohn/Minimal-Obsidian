@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide,
-  SimulationNodeDatum, SimulationLinkDatum
+  SimulationNodeDatum
 } from 'd3-force'
-import { zoom as d3zoom, zoomIdentity, ZoomTransform } from 'd3-zoom'
+import { zoom as d3zoom, zoomIdentity, ZoomTransform, ZoomBehavior } from 'd3-zoom'
 import { select } from 'd3-selection'
 
 interface GraphNode extends SimulationNodeDatum {
@@ -36,18 +36,31 @@ let cachedTransform: { x: number; y: number; k: number } | null = null
 
 const NODE_RADIUS = (lc: number) => 4 + 3 * Math.sqrt(lc)
 
+function computeFitTransform(nodes: RenderedNode[], w: number, h: number): ZoomTransform {
+  if (!nodes.length) return zoomIdentity
+  const xs = nodes.map(n => n.x)
+  const ys = nodes.map(n => n.y)
+  const minX = Math.min(...xs), maxX = Math.max(...xs)
+  const minY = Math.min(...ys), maxY = Math.max(...ys)
+  const pad = 60
+  const k = Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2) / (maxY - minY || 1), 1)
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  return zoomIdentity.translate(w / 2 - cx * k, h / 2 - cy * k).scale(k)
+}
+
 export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames }: GraphPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const nodesRef = useRef<RenderedNode[]>([])
   const edgesRef = useRef<GraphEdge[]>([])
   const transformRef = useRef<ZoomTransform>(zoomIdentity)
+  const zoomRef = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null)
   const hoverNodeRef = useRef<RenderedNode | null>(null)
   const activeNoteRef = useRef(activeNoteName)
   const highlightNamesRef = useRef(highlightNames)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null)
 
-  // Keep refs current and redraw on change
   useEffect(() => {
     activeNoteRef.current = activeNoteName
     draw()
@@ -86,7 +99,6 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
 
     const hasHl = hlNames && hlNames.size > 0
 
-    // Edges
     for (const edge of edges) {
       const s = nodeMap.get(edge.source)
       const tgt = nodeMap.get(edge.target)
@@ -102,7 +114,6 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
       ctx.stroke()
     }
 
-    // Nodes
     for (const node of nodes) {
       const r = NODE_RADIUS(node.linkCount)
       const dimmedByHover = neighbourSet && !neighbourSet.has(node.id)
@@ -123,6 +134,17 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
     ctx.restore()
   }
 
+  // Applies transform to both the ref and d3-zoom's internal state so they stay in sync
+  function applyTransform(t: ZoomTransform) {
+    transformRef.current = t
+    const canvas = canvasRef.current
+    if (canvas && zoomRef.current) {
+      select(canvas).call(zoomRef.current.transform, t)
+    } else {
+      draw()
+    }
+  }
+
   // Resize canvas
   useEffect(() => {
     const canvas = canvasRef.current
@@ -140,18 +162,31 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load graph — restore from cache if available, otherwise simulate
+  // d3-zoom — must be set up BEFORE load graph so zoomRef is ready
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const zb = d3zoom<HTMLCanvasElement, unknown>()
+      .scaleExtent([0.1, 8])
+      .on('zoom', e => { transformRef.current = e.transform; draw() })
+    select(canvas).call(zb)
+    zoomRef.current = zb
+    return () => { select(canvas).on('.zoom', null); zoomRef.current = null }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Load graph — restore from cache or simulate fresh
   useEffect(() => {
     let cancelled = false
 
     if (cachedNodes && cachedEdges) {
       nodesRef.current = cachedNodes
       edgesRef.current = cachedEdges
-      if (cachedTransform) {
-        transformRef.current = zoomIdentity
-          .translate(cachedTransform.x, cachedTransform.y)
-          .scale(cachedTransform.k)
-      }
+      const t = cachedTransform
+        ? zoomIdentity.translate(cachedTransform.x, cachedTransform.y).scale(cachedTransform.k)
+        : zoomIdentity
+      // Sync transform into d3-zoom so interactions continue from this state
+      applyTransform(t)
       draw()
     } else {
       ;(async () => {
@@ -199,13 +234,16 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
           x: n.x ?? w / 2, y: n.y ?? h / 2
         }))
         edgesRef.current = rawEdges
+
+        // Auto-fit to show all nodes
+        const fitT = computeFitTransform(nodesRef.current, w, h)
+        applyTransform(fitT)
         draw()
       })()
     }
 
     return () => {
       cancelled = true
-      // Save state so it survives tab switches
       if (nodesRef.current.length) {
         cachedNodes = nodesRef.current
         cachedEdges = edgesRef.current
@@ -213,18 +251,6 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
         cachedTransform = { x: t.x, y: t.y, k: t.k }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // d3-zoom
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const zb = d3zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.1, 8])
-      .on('zoom', e => { transformRef.current = e.transform; draw() })
-    select(canvas).call(zb)
-    return () => { select(canvas).on('.zoom', null) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
