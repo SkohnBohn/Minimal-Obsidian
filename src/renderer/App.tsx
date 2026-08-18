@@ -43,7 +43,7 @@ export default function App() {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
-    closeTab, createNewTab, switchTab,
+    closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
   } = useTabs()
 
@@ -289,6 +289,7 @@ export default function App() {
             activeTabId={activeTabId}
             onActivate={setActiveTabId}
             onClose={handleCloseTab}
+            onReorder={reorderTab}
           />
 
           <div className="editor-pane">

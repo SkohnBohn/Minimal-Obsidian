@@ -280,6 +280,16 @@ export function useTabs() {
     setActiveTabId(ht.id)
   }, [])
 
+  const reorderTab = useCallback((fromIdx: number, toIdx: number) => {
+    setTabs(prev => {
+      if (fromIdx === toIdx) return prev
+      const next = [...prev]
+      const [tab] = next.splice(fromIdx, 1)
+      next.splice(fromIdx < toIdx ? toIdx - 1 : toIdx, 0, tab)
+      return next
+    })
+  }, [])
+
   const renameTab = useCallback((tabId: string, newName: string, newPath: string) => {
     setTabs(prev => prev.map(t => {
       if (t.id !== tabId) return t
@@ -297,7 +307,7 @@ export function useTabs() {
     setActiveTabId, openTab, openTabByName,
     navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
-    closeTab, createNewTab, switchTab,
+    closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
   }
 }
