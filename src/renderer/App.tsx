@@ -214,10 +214,6 @@ export default function App() {
         e.preventDefault(); switchTab('prev')
       } else if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && e.key === 'Tab') {
         e.preventDefault(); switchTab('next')
-      } else if (e.metaKey && e.shiftKey && !e.altKey && e.key === '[') {
-        e.preventDefault(); switchTab('prev')
-      } else if (e.metaKey && e.shiftKey && !e.altKey && e.key === ']') {
-        e.preventDefault(); switchTab('next')
       } else if (meta && e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault(); if (activeTabId) goBack(activeTabId)
       } else if (meta && e.altKey && e.key === 'ArrowRight') {
