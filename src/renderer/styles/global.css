@@ -92,9 +92,9 @@ input {
 .rail-btn[data-tip]:hover::after {
   content: attr(data-tip);
   position: absolute;
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 11px;
   color: var(--stone);
   white-space: nowrap;
