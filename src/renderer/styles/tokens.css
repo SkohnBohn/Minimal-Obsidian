@@ -13,6 +13,7 @@
   --sidebar-w:   12.5vw;
   --max-content: 720px;
   --font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: Georgia, 'Palatino Linotype', Palatino, 'Book Antiqua', serif;
   --mono:        'SF Mono', 'Fira Mono', 'Consolas', monospace;
 }
 

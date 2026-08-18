@@ -255,7 +255,6 @@ export default function App() {
           <button
             className="rail-btn"
             data-tip="settings"
-            style={{ marginTop: 'auto' }}
             onClick={openSettingsTab}
           >
             ○
@@ -263,7 +262,7 @@ export default function App() {
           <button
             className="rail-btn"
             data-tip="vault"
-            style={{ fontSize: '10px' }}
+            style={{ marginTop: 'auto', fontSize: '10px' }}
             onClick={async () => {
               const fl = await window.api.vault.open()
               if (fl) { setFiles(fl); setVaultReady(true) }
