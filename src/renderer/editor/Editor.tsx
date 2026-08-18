@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Prec } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { search } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
@@ -74,10 +74,10 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     return [
       history(),
       search({ top: false }),
+      Prec.highest(keymap.of([{ key: 'Enter', run: footnoteEnterCommand }])),
       keymap.of([
         { key: 'Mod-Shift-o', run: insertFootnoteRef },
         { key: 'Mod-Shift-p', run: addFootnoteDef },
-        { key: 'Enter', run: footnoteEnterCommand },
         ...defaultKeymap, ...historyKeymap, indentWithTab
       ]),
       footnoteTooltipExt,
