@@ -19,7 +19,7 @@ export default function VaultPanel({ onVaultSet }: Props) {
   }, [])
 
   async function apply() {
-    const p = pathInput.trim()
+    const p = pathInput.trim().replace(/\\(.)/g, '$1')
     if (!p) return
     setError(null)
     const result = await window.api.vault.setPath(p)
