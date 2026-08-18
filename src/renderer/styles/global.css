@@ -486,8 +486,10 @@ input {
 .modal-result {
   padding: 8px 16px;
   cursor: pointer;
-  color: var(--ink);
-  font-size: 13px;
+  color: var(--stone);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -496,17 +498,7 @@ input {
 .modal-result:hover,
 .modal-result.selected {
   background: var(--bg-inset);
-}
-
-.modal-result.selected {
   color: var(--ink);
-}
-
-.modal-result-special {
-  color: var(--stone);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 /* Graph panel */
