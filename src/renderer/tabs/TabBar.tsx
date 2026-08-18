@@ -17,7 +17,7 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose }: TabBa
           className={`tab${tab.id === activeTabId ? ' active' : ''}`}
           onClick={() => onActivate(tab.id)}
         >
-          <span className="tab-name" title={tab.name}>
+          <span className="tab-name">
             {tab.isDirty ? '· ' : ''}{tab.name}
           </span>
           <button

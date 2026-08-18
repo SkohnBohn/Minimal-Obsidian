@@ -324,7 +324,6 @@ export default function App() {
                         />
                       : <div
                           className="note-title"
-                          title="Click to rename"
                           onClick={() => { setTitleInput(activeTab.name); setEditingTitle(true) }}
                         >
                           {activeTab.name}
