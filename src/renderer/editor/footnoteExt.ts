@@ -84,6 +84,32 @@ function getTooltips(state: EditorState): readonly Tooltip[] {
   return []
 }
 
+// Enter inside [^N] jumps cursor to end of the matching [^N]: definition line
+export const footnoteEnterCommand: Command = (view) => {
+  const cursor = view.state.selection.main.head
+  const doc = view.state.doc.toString()
+  const re = new RegExp(FOOTNOTE_REF_RE.source, 'g')
+  let m: RegExpExecArray | null
+  while ((m = re.exec(doc)) !== null) {
+    const from = m.index, to = m.index + m[0].length
+    if (cursor < from || cursor > to) continue
+    const n = parseInt(m[1])
+    if (!n) return false
+    // Find the definition line
+    const defRe = new RegExp(`^\\[\\^${n}\\]:`, 'm')
+    const defMatch = defRe.exec(doc)
+    if (!defMatch) return false
+    // Find end of that line
+    const defLineStart = defMatch.index
+    const lineEnd = doc.indexOf('\n', defLineStart)
+    const pos = lineEnd === -1 ? doc.length : lineEnd
+    view.dispatch({ selection: { anchor: pos } })
+    view.focus()
+    return true
+  }
+  return false
+}
+
 export const footnoteTooltipExt = StateField.define<readonly Tooltip[]>({
   create: getTooltips,
   update(tts, tr) {

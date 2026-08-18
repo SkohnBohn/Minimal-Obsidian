@@ -332,11 +332,16 @@ input {
 }
 
 /* Footnote source preview tooltip */
+.cm-tooltip:has(.cm-fn-tooltip) {
+  background: var(--bg-inset) !important;
+  border: 1px solid var(--ash) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
 .cm-fn-tooltip {
   font-size: 12px;
   color: var(--stone);
-  background: var(--bg-inset);
-  border: 1px solid var(--ash);
   padding: 2px 8px;
   max-width: 280px;
   white-space: nowrap;
