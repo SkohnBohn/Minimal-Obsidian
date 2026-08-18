@@ -175,6 +175,12 @@ input {
   overflow: hidden;
 }
 
+.sidebar-result-snippet + .sidebar-result-snippet {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--ash);
+}
+
 .sidebar-result-snippet mark {
   background: none;
   color: var(--link);
