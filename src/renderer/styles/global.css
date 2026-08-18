@@ -102,9 +102,9 @@ input {
   z-index: 100;
 }
 .rail-btn[data-tip]:first-child:hover::after {
-  top: calc(100% + 5px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(100% + 4px);
+  left: calc(100% + 8px);
+  transform: none;
 }
 
 /* Main area */
