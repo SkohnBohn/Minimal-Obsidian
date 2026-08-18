@@ -303,6 +303,10 @@ input {
   width: 100%;
 }
 
+.note-title-input::placeholder {
+  color: var(--ash);
+}
+
 /* Editor container */
 .editor-wrap {
   flex: 1;

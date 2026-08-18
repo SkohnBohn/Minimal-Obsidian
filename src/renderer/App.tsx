@@ -42,12 +42,23 @@ export default function App() {
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
-    openGraphTab, openHotkeysTab, openSettingsTab, renameTab,
+    openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
 
   useEffect(() => { setShowFind(false) }, [activeTabId])
+
+  // Auto-focus title input for brand-new tabs
+  useEffect(() => {
+    if (activeTab?.isNaming) {
+      setTitleInput('')
+      setEditingTitle(true)
+    } else {
+      setEditingTitle(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabId])
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const pendingUnmountWrites = useRef<Promise<void>[]>([])
@@ -150,6 +161,7 @@ export default function App() {
     if (!activeTab || !editingTitle) return
     const newName = titleInput.trim()
     setEditingTitle(false)
+    if (activeTab.isNaming) clearNaming(activeTab.id)
     if (!newName || newName === activeTab.name) return
     try {
       const newPath = await window.api.vault.rename(activeTab.path, newName)
@@ -158,7 +170,7 @@ export default function App() {
     } catch (err) {
       console.error('Rename failed', err)
     }
-  }, [activeTab, editingTitle, titleInput, renameTab])
+  }, [activeTab, editingTitle, titleInput, renameTab, clearNaming])
 
   useEffect(() => {
     return window.api.app.onWillQuit(async () => {
@@ -295,11 +307,12 @@ export default function App() {
                       ? <input
                           className="note-title note-title-input"
                           value={titleInput}
+                          placeholder={activeTab.name}
                           onChange={e => setTitleInput(e.target.value)}
                           onBlur={commitRename}
                           onKeyDown={e => {
                             if (e.key === 'Enter') commitRename()
-                            if (e.key === 'Escape') setEditingTitle(false)
+                            if (e.key === 'Escape') { clearNaming(activeTab.id); setEditingTitle(false) }
                           }}
                           autoFocus
                         />

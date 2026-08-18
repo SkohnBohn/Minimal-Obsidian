@@ -19,6 +19,7 @@ export interface Tab {
   contentVersion: number   // incremented on in-tab navigation to force editor remount
   navHistory: NavEntry[]   // visited notes in this tab
   navIndex: number         // current position in navHistory
+  isNaming?: boolean       // true for brand-new tabs until title is committed
 }
 
 const SESSION_TABS_KEY = 'session.tabs'
@@ -216,8 +217,18 @@ export function useTabs() {
     let n = 1, name = 'Untitled'
     while (files.some(f => f.name === name)) name = `Untitled ${n++}`
     const path = await window.api.vault.create(name)
-    await openTab(path, name)
-  }, [openTab])
+    const content = await window.api.vault.read(path)
+    const newTab: Tab = { ...makeTab(path, name, content), isNaming: true }
+    setTabs(prev => {
+      if (prev.find(t => t.path === path)) return prev
+      setActiveTabId(newTab.id)
+      return [...prev, newTab]
+    })
+  }, [])
+
+  const clearNaming = useCallback((tabId: string) => {
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isNaming: false } : t))
+  }, [])
 
   const switchTab = useCallback((dir: 'prev' | 'next') => {
     setTabs(prev => {
@@ -272,7 +283,7 @@ export function useTabs() {
       const navHistory = t.navHistory.map(e =>
         e.path === t.path ? { path: newPath, name: newName } : e
       )
-      return { ...t, path: newPath, name: newName, navHistory }
+      return { ...t, path: newPath, name: newName, navHistory, isNaming: false }
     }))
   }, [])
 
@@ -282,7 +293,7 @@ export function useTabs() {
     tabs, activeTab, activeTabId,
     setActiveTabId, openTab, openTabByName,
     navigateInTab, goBack, goForward,
-    openGraphTab, openHotkeysTab, openSettingsTab, renameTab,
+    openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   }
