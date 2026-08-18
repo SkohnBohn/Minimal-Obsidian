@@ -146,7 +146,7 @@ const footnoteTooltipTimer = ViewPlugin.fromClass(class {
   }
 })
 
-// Enter inside [^N] jumps cursor to end of the matching [^N]: definition line
+// Enter inside [^N] exits the brackets — cursor lands right after ]
 export const footnoteEnterCommand: Command = (view) => {
   const { state } = view
   const cursor = state.selection.main.head
@@ -159,10 +159,7 @@ export const footnoteEnterCommand: Command = (view) => {
     if (col < m.index || col > m.index + m[0].length) continue
     const n = parseInt(m[1])
     if (!n) continue
-    const defMatch = new RegExp(`^\\[\\^${n}\\]:`, 'm').exec(state.doc.toString())
-    if (!defMatch) return false
-    const defLine = state.doc.lineAt(defMatch.index)
-    view.dispatch({ selection: { anchor: defLine.to }, scrollIntoView: true })
+    view.dispatch({ selection: { anchor: line.from + m.index + m[0].length } })
     return true
   }
   return false
