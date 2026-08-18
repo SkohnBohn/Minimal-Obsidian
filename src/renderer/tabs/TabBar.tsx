@@ -26,7 +26,6 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose }: TabBa
               e.stopPropagation()
               onClose(tab.id)
             }}
-            title="Close tab"
           >
             ×
           </button>
