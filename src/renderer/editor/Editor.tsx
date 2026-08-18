@@ -86,6 +86,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       EditorView.theme({
         '.cm-content': { padding: '0', caretColor: 'var(--ink)' },
         '.cm-line':    { padding: '0', lineHeight: '1.7' },
+        '.cm-tooltip': { background: 'var(--bg-inset) !important', border: '1px solid var(--ash) !important', borderRadius: '0 !important', boxShadow: 'none !important' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       markdownDecorationsPlugin,

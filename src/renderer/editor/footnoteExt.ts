@@ -86,25 +86,21 @@ function getTooltips(state: EditorState): readonly Tooltip[] {
 
 // Enter inside [^N] jumps cursor to end of the matching [^N]: definition line
 export const footnoteEnterCommand: Command = (view) => {
-  const cursor = view.state.selection.main.head
-  const doc = view.state.doc.toString()
-  const re = new RegExp(FOOTNOTE_REF_RE.source, 'g')
+  const { state } = view
+  const cursor = state.selection.main.head
+  const line = state.doc.lineAt(cursor)
+  const col = cursor - line.from
+
+  const refRe = /\[\^(\d+)\]/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(doc)) !== null) {
-    const from = m.index, to = m.index + m[0].length
-    if (cursor < from || cursor > to) continue
+  while ((m = refRe.exec(line.text)) !== null) {
+    if (col < m.index || col > m.index + m[0].length) continue
     const n = parseInt(m[1])
-    if (!n) return false
-    // Find the definition line
-    const defRe = new RegExp(`^\\[\\^${n}\\]:`, 'm')
-    const defMatch = defRe.exec(doc)
+    if (!n) continue
+    const defMatch = new RegExp(`^\\[\\^${n}\\]:`, 'm').exec(state.doc.toString())
     if (!defMatch) return false
-    // Find end of that line
-    const defLineStart = defMatch.index
-    const lineEnd = doc.indexOf('\n', defLineStart)
-    const pos = lineEnd === -1 ? doc.length : lineEnd
-    view.dispatch({ selection: { anchor: pos } })
-    view.focus()
+    const defLine = state.doc.lineAt(defMatch.index)
+    view.dispatch({ selection: { anchor: defLine.to }, scrollIntoView: true })
     return true
   }
   return false
