@@ -9,6 +9,39 @@ interface Props {
   onClose: () => void
 }
 
+function clearPageHighlight() {
+  if (typeof CSS !== 'undefined' && CSS.highlights) CSS.highlights.delete('find-highlight')
+}
+
+function highlightInPage(query: string, skipEl: HTMLElement | null) {
+  clearPageHighlight()
+  if (!query || typeof CSS === 'undefined' || !CSS.highlights) return
+
+  const ranges: Range[] = []
+  const q = query.toLowerCase()
+
+  function walk(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (skipEl && skipEl.contains(node)) return
+      const text = node.textContent ?? ''
+      const lower = text.toLowerCase()
+      let idx = 0
+      while ((idx = lower.indexOf(q, idx)) !== -1) {
+        const range = new Range()
+        range.setStart(node, idx)
+        range.setEnd(node, idx + query.length)
+        ranges.push(range)
+        idx += query.length
+      }
+    } else {
+      for (const child of node.childNodes) walk(child)
+    }
+  }
+
+  walk(document.body)
+  if (ranges.length) CSS.highlights.set('find-highlight', new Highlight(...ranges))
+}
+
 export default function FindBar({ view, query, onQuery, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -17,39 +50,44 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
     inputRef.current?.select()
   }, [])
 
+  // CodeMirror highlight for note tabs
   useEffect(() => {
-    if (view) {
-      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) })
-    } else if (query) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).find(query, false, false, true)
-    }
+    if (!view) return
+    view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) })
   }, [query, view])
 
-  // Clear highlights when bar closes
+  // CSS Custom Highlight API for non-editor tabs — no focus theft
+  useEffect(() => {
+    if (view) return
+    highlightInPage(query, inputRef.current)
+  }, [query, view])
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       view?.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) })
+      clearPageHighlight()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view])
-
-  function nativeFindNext() {
-    if (!query) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(window as any).find(query, false, false, true)
-  }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (view) { if (query) findNext(view) }
-      else nativeFindNext()
+      if (view) {
+        if (query) findNext(view)
+      } else if (query) {
+        // Navigate to next match then immediately re-focus input
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).find(query, false, false, true)
+        setTimeout(() => inputRef.current?.focus(), 0)
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onClose()
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
       e.preventDefault()
-      e.stopPropagation()  // prevent App.tsx window handler from re-opening
+      e.stopPropagation()
       onClose()
     }
   }

@@ -387,6 +387,12 @@ input {
   background: rgba(139, 112, 64, 0.38) !important;
 }
 
+/* CSS Custom Highlight API — non-editor tabs */
+::highlight(find-highlight) {
+  background-color: rgba(139, 112, 64, 0.28);
+  color: inherit;
+}
+
 /* CodeMirror overrides */
 .cm-editor {
   font-family: var(--font);

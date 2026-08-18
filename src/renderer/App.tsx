@@ -297,6 +297,7 @@ export default function App() {
               <GraphPanel
                 activeNoteName={null}
                 onOpenNote={handleOpenNote}
+                highlightNames={searchQuery.trim() ? new Set(searchResults.map(r => r.name)) : undefined}
               />
             ) : activeTab?.type === 'hotkeys' ? (
               <HotkeysPanel />

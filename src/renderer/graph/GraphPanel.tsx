@@ -26,6 +26,7 @@ interface RenderedNode {
 interface GraphPanelProps {
   activeNoteName: string | null
   onOpenNote: (name: string) => void
+  highlightNames?: Set<string>
 }
 
 // Persists across tab switches for the lifetime of the app session
@@ -35,7 +36,7 @@ let cachedTransform: { x: number; y: number; k: number } | null = null
 
 const NODE_RADIUS = (lc: number) => 4 + 3 * Math.sqrt(lc)
 
-export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelProps) {
+export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames }: GraphPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const nodesRef = useRef<RenderedNode[]>([])
@@ -43,14 +44,12 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
   const transformRef = useRef<ZoomTransform>(zoomIdentity)
   const hoverNodeRef = useRef<RenderedNode | null>(null)
   const activeNoteRef = useRef(activeNoteName)
+  const highlightNamesRef = useRef(highlightNames)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null)
 
-  // Keep activeNoteRef current and redraw on change
-  useEffect(() => {
-    activeNoteRef.current = activeNoteName
-    draw()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeNoteName])
+  // Keep refs current and redraw on change
+  useEffect(() => { activeNoteRef.current = activeNoteName; draw() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeNoteName])
+  useEffect(() => { highlightNamesRef.current = highlightNames; draw() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [highlightNames])
 
   function draw() {
     const canvas = canvasRef.current
@@ -62,6 +61,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
     const edges = edgesRef.current
     const hover = hoverNodeRef.current
     const active = activeNoteRef.current
+    const hlNames = highlightNamesRef.current
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.save()
@@ -75,13 +75,16 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
           .flatMap(e => [e.source, e.target])])
       : null
 
+    const hasHl = hlNames && hlNames.size > 0
+
     // Edges
     for (const edge of edges) {
       const s = nodeMap.get(edge.source)
       const tgt = nodeMap.get(edge.target)
       if (!s || !tgt) continue
-      const dimmed = neighbourSet && !neighbourSet.has(edge.source) && !neighbourSet.has(edge.target)
-      ctx.globalAlpha = dimmed ? 0.08 : 0.45
+      const dimmedByHover = neighbourSet && !neighbourSet.has(edge.source) && !neighbourSet.has(edge.target)
+      const dimmedBySearch = hasHl && (!hlNames!.has(edge.source) || !hlNames!.has(edge.target))
+      ctx.globalAlpha = (dimmedByHover || dimmedBySearch) ? 0.06 : 0.45
       ctx.strokeStyle = '#8b7040'
       ctx.lineWidth = 1
       ctx.beginPath()
@@ -93,11 +96,13 @@ export default function GraphPanel({ activeNoteName, onOpenNote }: GraphPanelPro
     // Nodes
     for (const node of nodes) {
       const r = NODE_RADIUS(node.linkCount)
-      const dimmed = neighbourSet && !neighbourSet.has(node.id)
-      ctx.globalAlpha = dimmed ? 0.2 : 1.0
-      ctx.fillStyle = '#8b7040'
+      const dimmedByHover = neighbourSet && !neighbourSet.has(node.id)
+      const isHl = hasHl && hlNames!.has(node.id)
+      const dimmedBySearch = hasHl && !isHl
+      ctx.globalAlpha = dimmedByHover ? 0.2 : dimmedBySearch ? 0.12 : 1.0
+      ctx.fillStyle = isHl ? '#c09040' : '#8b7040'
       ctx.beginPath()
-      ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
+      ctx.arc(node.x, node.y, isHl ? r + 1.5 : r, 0, Math.PI * 2)
       ctx.fill()
       if (node.id === active) {
         ctx.strokeStyle = '#262626'
