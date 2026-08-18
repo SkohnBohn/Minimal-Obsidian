@@ -113,7 +113,12 @@ app.whenReady().then(() => {
   app.on('before-quit', (e) => {
     if (!readyToQuit) {
       e.preventDefault()
-      win.webContents.send('app:will-quit')
+      if (win.isDestroyed()) {
+        readyToQuit = true
+        app.quit()
+      } else {
+        win.webContents.send('app:will-quit')
+      }
     }
   })
 
