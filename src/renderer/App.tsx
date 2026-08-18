@@ -236,7 +236,7 @@ export default function App() {
             data-tip="shortcuts"
             onClick={openHotkeysTab}
           >
-            ?
+            ⌘
           </button>
           <button
             className="rail-btn"
@@ -250,7 +250,7 @@ export default function App() {
             data-tip="settings"
             onClick={openSettingsTab}
           >
-            ○
+            ◎
           </button>
           <button
             className="rail-btn"
