@@ -157,7 +157,7 @@ export default function App() {
       const meta = e.metaKey || e.ctrlKey
       if (meta && !e.shiftKey && !e.altKey && e.key === 'o') {
         e.preventDefault(); setShowSwitcher(v => !v)
-      } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
+      } else if (meta && e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()

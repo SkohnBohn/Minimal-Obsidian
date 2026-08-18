@@ -305,6 +305,74 @@ input {
   padding: 0 24px;
 }
 
+/* CM6 find-in-note panel */
+.cm-search.cm-panel {
+  background: var(--bg-inset);
+  border-top: 1px solid var(--ash);
+  border-bottom: none;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-search.cm-panel input[type="text"],
+.cm-search.cm-panel .cm-textfield {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ash);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 2px 4px;
+  outline: none;
+  width: 180px;
+}
+
+.cm-search.cm-panel input[type="text"]:focus,
+.cm-search.cm-panel .cm-textfield:focus {
+  border-bottom-color: var(--link);
+}
+
+.cm-search.cm-panel button,
+.cm-search.cm-panel .cm-button {
+  background: none;
+  border: none;
+  color: var(--stone);
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.cm-search.cm-panel button:hover,
+.cm-search.cm-panel .cm-button:hover {
+  color: var(--ink);
+  background: var(--ash);
+}
+
+.cm-search.cm-panel label {
+  font-size: 12px;
+  color: var(--stone);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.cm-search.cm-panel br { display: none; }
+
+/* Match highlights */
+.cm-searchMatch {
+  background: rgba(139, 112, 64, 0.18);
+  border-radius: 1px;
+}
+
+.cm-searchMatch-selected {
+  background: rgba(139, 112, 64, 0.42) !important;
+}
+
 /* CodeMirror overrides */
 .cm-editor {
   font-family: var(--font);

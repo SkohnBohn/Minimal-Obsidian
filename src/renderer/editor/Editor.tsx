@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { search, searchKeymap } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
 import { markdownDecorationsPlugin } from './markdownDecorations'
@@ -76,7 +77,8 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
   ) {
     return [
       history(),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      search({ top: false }),
+      keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
       markdown(),
       EditorView.lineWrapping,
       // Override CM6's base theme which sets .cm-line { padding: 0 2px 0 4px }.
