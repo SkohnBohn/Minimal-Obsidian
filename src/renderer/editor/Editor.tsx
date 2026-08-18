@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
-import { search, searchKeymap, openSearchPanel, closeSearchPanel } from '@codemirror/search'
+import { search } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
 import { markdownDecorationsPlugin } from './markdownDecorations'
@@ -12,15 +12,14 @@ interface EditorProps {
   tab: Tab
   noteNames: string[]
   header?: React.ReactNode
-  onNavigateNote: (name: string) => void  // left-click: navigate current tab
-  onOpenNote: (name: string) => void       // right-click / cmd+click: new tab
+  onNavigateNote: (name: string) => void
+  onOpenNote: (name: string) => void
   onContentChange: (tabId: string, content: string, state: EditorState, scrollPos: number) => void
-  // Separate unmount callback that writes to the path captured at mount time without
-  // touching React state — prevents stale cmState from contaminating a navigated tab.
   onEditorUnmount: (tabId: string, capturedPath: string, content: string) => void
+  onViewReady: (view: EditorView | null) => void
 }
 
-export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange, onEditorUnmount }: EditorProps) {
+export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange, onEditorUnmount, onViewReady }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
@@ -40,8 +39,8 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       return
     }
     viewRef.current = view
+    onViewReady(view)
 
-    // Restore scroll after CM has finished measuring content (RAF alone is too early for long docs)
     if (tab.scrollPos) {
       view.requestMeasure({
         read: () => null,
@@ -50,20 +49,16 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     }
 
     return () => {
+      onViewReady(null)
       if (viewRef.current) {
-        // Use the dedicated unmount callback so the captured path (from mount time)
-        // is used for the save — never the tab's current path which may have already
-        // changed due to goBack / goForward / wikilink navigation.
         onEditorUnmount(tab.id, tab.path, viewRef.current.state.doc.toString())
       }
       view.destroy()
       viewRef.current = null
     }
-  // Remount when tab id OR contentVersion changes (in-tab navigation)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.id, tab.contentVersion])
 
-  // Reactively update note names without remounting
   useEffect(() => {
     viewRef.current?.dispatch({ effects: setNoteNames.of(noteNames) })
   }, [noteNames])
@@ -78,17 +73,9 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     return [
       history(),
       search({ top: false }),
-      keymap.of([
-        { key: 'Mod-f', run: v => closeSearchPanel(v) || openSearchPanel(v) },
-        ...defaultKeymap, ...historyKeymap,
-        ...searchKeymap.filter(b => b.key !== 'Mod-f' && b.key !== 'Escape'),
-        indentWithTab
-      ]),
+      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
       markdown(),
       EditorView.lineWrapping,
-      // Override CM6's base theme which sets .cm-line { padding: 0 2px 0 4px }.
-      // EditorView.theme() wins over the base theme via specificity, so this is
-      // the correct way — a plain global .cm-line rule loses to CM6's scoped styles.
       EditorView.theme({
         '.cm-content': { padding: '0', caretColor: 'var(--ink)' },
         '.cm-line':    { padding: '0', lineHeight: '1.7' },

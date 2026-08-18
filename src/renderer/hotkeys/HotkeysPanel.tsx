@@ -5,7 +5,7 @@ const SHORTCUTS = [
   ['⌘N', 'new note'],
   ['⌘W', 'close tab'],
   ['⌘F', 'find in note'],
-  ['⌘⇧F', 'search all notes'],
+  ['⌘⇧F', 'search notes'],
   ['⇧⌥←', 'prev tab'],
   ['⇧⌥→', 'next tab'],
   ['⌘⌥←', 'back'],

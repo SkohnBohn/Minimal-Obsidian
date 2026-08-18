@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import TabBar from './tabs/TabBar'
 import { useTabs } from './tabs/useTabs'
 import Editor from './editor/Editor'
+import FindBar from './editor/FindBar'
 import GraphPanel from './graph/GraphPanel'
 import HotkeysPanel from './hotkeys/HotkeysPanel'
 import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
 import FileSwitcher from './modal/FileSwitcher'
 import { EditorState } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 
 interface FileEntry { name: string; path: string; mtime: number }
 
@@ -15,6 +17,11 @@ export default function App() {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [showSidebar, setShowSidebar] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
+  const [showFind, setShowFind] = useState(false)
+  const activeEditorView = useRef<EditorView | null>(null)
+  const handleViewReady = useCallback((view: EditorView | null) => {
+    activeEditorView.current = view
+  }, [])
   const [vaultReady, setVaultReady] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
@@ -26,6 +33,8 @@ export default function App() {
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
+
+  useEffect(() => { setShowFind(false) }, [activeTabId])
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const pendingUnmountWrites = useRef<Promise<void>[]>([])
@@ -157,6 +166,9 @@ export default function App() {
       const meta = e.metaKey || e.ctrlKey
       if (meta && !e.shiftKey && !e.altKey && e.key === 'o') {
         e.preventDefault(); setShowSwitcher(v => !v)
+      } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
+        e.preventDefault()
+        if (activeTab?.type === 'note') setShowFind(v => !v)
       } else if (meta && e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
@@ -172,7 +184,7 @@ export default function App() {
       } else if (meta && e.altKey && e.key === 'ArrowRight') {
         e.preventDefault(); if (activeTabId) goForward(activeTabId)
       } else if (e.key === 'Escape') {
-        setShowSwitcher(false); setShowSidebar(false)
+        setShowSwitcher(false); setShowSidebar(false); setShowFind(false)
       }
     }
     window.addEventListener('keydown', handler)
@@ -287,6 +299,7 @@ export default function App() {
                   onOpenNote={handleOpenNote}
                   onContentChange={handleContentChange}
                   onEditorUnmount={handleEditorUnmount}
+                  onViewReady={handleViewReady}
                 />
               </>
             ) : (
@@ -302,6 +315,10 @@ export default function App() {
           onOpen={name => handleOpenNote(name)}
           onClose={() => setShowSwitcher(false)}
         />
+      )}
+
+      {showFind && (
+        <FindBar view={activeEditorView.current} onClose={() => setShowFind(false)} />
       )}
 
       {saveError && (

@@ -305,64 +305,40 @@ input {
   padding: 0 24px;
 }
 
-/* CM6 find-in-note panel */
-.cm-search.cm-panel {
-  background: var(--bg-inset);
-  border-top: 1px solid var(--ash);
-  padding: 5px 12px;
-  display: flex;
-  align-items: center;
-  gap: 0;
+/* Floating find bar */
+.find-bar {
+  position: fixed;
+  bottom: 14px;
+  left: calc(var(--rail-w) + 10px);
+  width: 130px;
+  background: var(--bg);
+  border: 1px solid var(--ash);
+  padding: 4px 8px;
+  z-index: 200;
 }
 
-/* Show only the search input */
-.cm-search.cm-panel input[name="search"] {
+.find-bar-input {
+  width: 100%;
   background: transparent;
   border: none;
-  color: var(--ink);
+  outline: none;
   font-family: var(--font);
   font-size: 13px;
-  padding: 0;
-  outline: none;
-  flex: 1;
+  color: var(--ink);
 }
 
-/* Hide everything except the close button */
-.cm-search.cm-panel button[name="next"],
-.cm-search.cm-panel button[name="prev"],
-.cm-search.cm-panel button[name="select"],
-.cm-search.cm-panel label,
-.cm-search.cm-panel input[name="replace"],
-.cm-search.cm-panel button[name="replace"],
-.cm-search.cm-panel button[name="replaceAll"],
-.cm-search.cm-panel br {
-  display: none;
-}
-
-/* Minimal close button */
-.cm-search.cm-panel button[name="close"] {
-  background: none;
-  border: none;
+.find-bar-input::placeholder {
   color: var(--stone);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
   opacity: 0.5;
-}
-
-.cm-search.cm-panel button[name="close"]:hover {
-  opacity: 1;
 }
 
 /* Match highlights */
 .cm-searchMatch {
-  background: rgba(139, 112, 64, 0.18);
-  border-radius: 1px;
+  background: rgba(139, 112, 64, 0.15);
 }
 
 .cm-searchMatch-selected {
-  background: rgba(139, 112, 64, 0.42) !important;
+  background: rgba(139, 112, 64, 0.38) !important;
 }
 
 /* CodeMirror overrides */
