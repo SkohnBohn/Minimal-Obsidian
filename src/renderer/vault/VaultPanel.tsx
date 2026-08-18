@@ -34,15 +34,14 @@ export default function VaultPanel({ onVaultSet }: Props) {
       <div className="settings-section">vault path</div>
 
       {currentPath && (
-        <div style={{ fontSize: 12, color: 'var(--stone)', width: 340, wordBreak: 'break-all' }}>
-          current: {currentPath}
+        <div style={{ fontSize: 12, color: 'var(--stone)', width: 220, wordBreak: 'break-all', lineHeight: 1.5 }}>
+          {currentPath}
         </div>
       )}
 
       <input
         ref={inputRef}
-        className="sidebar-input"
-        style={{ width: 340 }}
+        className="vault-path-input"
         value={pathInput}
         onChange={e => { setPathInput(e.target.value); setError(null) }}
         onKeyDown={e => { if (e.key === 'Enter') apply() }}
@@ -51,14 +50,10 @@ export default function VaultPanel({ onVaultSet }: Props) {
       />
 
       {error && (
-        <div style={{ fontSize: 12, color: '#a03030' }}>{error}</div>
+        <div style={{ fontSize: 12, color: '#a03030', width: 220 }}>{error}</div>
       )}
 
-      <button
-        className="settings-theme-btn"
-        style={{ width: 340 }}
-        onClick={apply}
-      >
+      <button className="vault-apply-btn" onClick={apply}>
         set vault
       </button>
     </div>
