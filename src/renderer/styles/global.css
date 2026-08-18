@@ -80,7 +80,7 @@ input {
   border-radius: 3px;
   transition: opacity 100ms;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1;
   user-select: none;
 }
