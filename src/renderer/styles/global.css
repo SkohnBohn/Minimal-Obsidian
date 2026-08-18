@@ -580,6 +580,52 @@ input {
   width: 220px;
 }
 
+.settings-vault-path {
+  font-size: 12px;
+  color: var(--stone);
+  width: 220px;
+  word-break: break-all;
+}
+
+.settings-vault-input {
+  width: 220px;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--ash);
+  padding: 3px 0;
+  outline: none;
+}
+
+.settings-vault-input::placeholder {
+  color: var(--stone);
+  opacity: 0.5;
+}
+
+.settings-vault-error {
+  font-size: 12px;
+  color: #a03030;
+  width: 220px;
+}
+
+.settings-vault-btn {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--stone);
+  border: 1px solid var(--ash);
+  padding: 3px 14px;
+  cursor: pointer;
+  background: transparent;
+  transition: color 80ms;
+}
+
+.settings-vault-btn:hover {
+  color: var(--ink);
+}
+
 .settings-row {
   display: flex;
   align-items: center;
@@ -642,73 +688,6 @@ input {
 }
 
 .settings-theme-btn:hover:not(.active) {
-  color: var(--ink);
-}
-
-/* Vault panel */
-.vault-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 48px;
-}
-
-.vault-panel-inner {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 340px;
-}
-
-.vault-panel-section {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--stone);
-}
-
-.vault-panel-path {
-  font-size: 12px;
-  color: var(--stone);
-  word-break: break-all;
-}
-
-.vault-path-input {
-  font-size: 12px;
-  font-family: var(--font);
-  color: var(--ink);
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--ash);
-  padding: 3px 0;
-  outline: none;
-}
-
-.vault-path-input::placeholder {
-  color: var(--stone);
-  opacity: 0.5;
-}
-
-.vault-panel-error {
-  font-size: 12px;
-  color: #a03030;
-}
-
-.vault-apply-btn {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--stone);
-  border: 1px solid var(--ash);
-  padding: 3px 14px;
-  cursor: pointer;
-  background: transparent;
-  transition: color 80ms;
-  align-self: center;
-}
-
-.vault-apply-btn:hover {
   color: var(--ink);
 }
 

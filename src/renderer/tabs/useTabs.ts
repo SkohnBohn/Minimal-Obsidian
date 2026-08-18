@@ -9,7 +9,7 @@ export interface NavEntry {
 
 export interface Tab {
   id: string
-  type: 'note' | 'graph' | 'hotkeys' | 'settings' | 'vault'
+  type: 'note' | 'graph' | 'hotkeys' | 'settings'
   path: string
   name: string
   isDirty: boolean
@@ -54,15 +54,6 @@ function makeSettingsTab(): Tab {
   }
 }
 
-function makeVaultTab(): Tab {
-  return {
-    id: uuidv4(), type: 'vault', path: '', name: 'Vault',
-    isDirty: false, scrollPos: 0, cmState: null,
-    initialContent: '', contentVersion: 0,
-    navHistory: [], navIndex: 0, lastUsed: Date.now()
-  }
-}
-
 function makeHotkeysTab(): Tab {
   return {
     id: uuidv4(), type: 'hotkeys', path: '', name: 'Shortcuts',
@@ -99,7 +90,6 @@ export function useTabs() {
         if (type === 'graph') { restoredTabs.push(makeGraphTab()); continue }
         if (type === 'hotkeys') { restoredTabs.push(makeHotkeysTab()); continue }
         if (type === 'settings') { restoredTabs.push(makeSettingsTab()); continue }
-        if (type === 'vault') { restoredTabs.push(makeVaultTab()); continue }
         let content = ''
         try { content = await window.api.vault.read(path) } catch { continue }
         restoredTabs.push(makeTab(path, name, content))
@@ -274,14 +264,6 @@ export function useTabs() {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t))
   }, [])
 
-  const openVaultTab = useCallback(() => {
-    const existing = tabsRef.current.find(t => t.type === 'vault')
-    if (existing) { activateTab(existing.id); return }
-    const vt = makeVaultTab()
-    setTabs(prev => [...prev, vt])
-    activateTab(vt.id)
-  }, [activateTab])
-
   const openGraphTab = useCallback(() => {
     const existing = tabsRef.current.find(t => t.type === 'graph')
     if (existing) { activateTab(existing.id); return }
@@ -332,7 +314,7 @@ export function useTabs() {
     tabs, activeTab, activeTabId,
     setActiveTabId: activateTab, openTab, openTabByName,
     navigateInTab, goBack, goForward,
-    openVaultTab, openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
+    openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
   }

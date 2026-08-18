@@ -8,7 +8,6 @@ import HotkeysPanel from './hotkeys/HotkeysPanel'
 import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
 import FileSwitcher from './modal/FileSwitcher'
-import VaultPanel from './vault/VaultPanel'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
@@ -43,7 +42,7 @@ export default function App() {
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
-    openGraphTab, openHotkeysTab, openSettingsTab, openVaultTab, renameTab, clearNaming,
+    openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
   } = useTabs()
@@ -90,7 +89,7 @@ export default function App() {
         setFiles(await window.api.vault.list())
         setVaultReady(true)
       } else {
-        openVaultTab()
+        openSettingsTab()
         setVaultReady(true)
       }
     })()
@@ -248,17 +247,10 @@ export default function App() {
           <button
             className="rail-btn"
             data-tip="settings"
+            style={{ marginTop: 'auto' }}
             onClick={openSettingsTab}
           >
             ◎
-          </button>
-          <button
-            className="rail-btn"
-            data-tip="vault"
-            style={{ marginTop: 'auto', fontSize: '10px' }}
-            onClick={openVaultTab}
-          >
-            ⬙
           </button>
         </div>
 
@@ -292,9 +284,7 @@ export default function App() {
             ) : activeTab?.type === 'hotkeys' ? (
               <HotkeysPanel />
             ) : activeTab?.type === 'settings' ? (
-              <SettingsPanel />
-            ) : activeTab?.type === 'vault' ? (
-              <VaultPanel onVaultSet={files => { setFiles(files); setVaultReady(true) }} />
+              <SettingsPanel onVaultSet={files => { setFiles(files); setVaultReady(true) }} />
             ) : activeTab ? (
               <>
                 <Editor
