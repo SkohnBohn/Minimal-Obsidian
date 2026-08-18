@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useCallback } from 'react'
 
 interface SearchResult {
   path: string
@@ -7,27 +7,16 @@ interface SearchResult {
 }
 
 interface SearchSidebarProps {
+  query: string
+  results: SearchResult[]
+  onQuery: (q: string) => void
   onOpen: (path: string, name: string) => void
 }
 
-export default function SearchSidebar({ onOpen }: SearchSidebarProps) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+export default function SearchSidebar({ query, results, onQuery, onOpen }: SearchSidebarProps) {
   const handleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value
-    setQuery(q)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      if (!q.trim()) {
-        setResults([])
-        return
-      }
-      const res = await window.api.search.query(q)
-      setResults(res)
-    }, 120)
-  }, [])
+    onQuery(e.target.value)
+  }, [onQuery])
 
   return (
     <div className="sidebar">
@@ -38,6 +27,8 @@ export default function SearchSidebar({ onOpen }: SearchSidebarProps) {
           value={query}
           onChange={handleInput}
           autoFocus
+          // Select all on reopen so user can type over the previous query
+          onFocus={e => e.target.select()}
         />
       </div>
       <div className="sidebar-results">

@@ -17,6 +17,18 @@ export default function App() {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [showSidebar, setShowSidebar] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{path:string;name:string;snippet:string}[]>([])
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleSearchQuery = useCallback((q: string) => {
+    setSearchQuery(q)
+    if (searchDebounce.current) clearTimeout(searchDebounce.current)
+    searchDebounce.current = setTimeout(async () => {
+      if (!q.trim()) { setSearchResults([]); return }
+      setSearchResults(await window.api.search.query(q))
+    }, 120)
+  }, [])
   const [showFind, setShowFind] = useState(false)
   const activeEditorView = useRef<EditorView | null>(null)
   const handleViewReady = useCallback((view: EditorView | null) => {
@@ -245,6 +257,9 @@ export default function App() {
         {/* Search sidebar — in flow, pushes main to the right */}
         {showSidebar && (
           <SearchSidebar
+            query={searchQuery}
+            results={searchResults}
+            onQuery={handleSearchQuery}
             onOpen={(path, name) => { handleOpenFile(path, name); setShowSidebar(false) }}
           />
         )}
