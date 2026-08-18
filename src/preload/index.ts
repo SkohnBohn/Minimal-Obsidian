@@ -26,6 +26,9 @@ export interface VaultChangeEvent {
 const api = {
   vault: {
     open: (): Promise<FileEntry[] | null> => ipcRenderer.invoke('vault:open'),
+    setPath: (p: string): Promise<{ files?: FileEntry[]; error?: string }> =>
+      ipcRenderer.invoke('vault:setPath', p),
+    getPath: (): Promise<string | null> => ipcRenderer.invoke('vault:getPath'),
     list: (): Promise<FileEntry[]> => ipcRenderer.invoke('vault:list'),
     read: (filePath: string): Promise<string> => ipcRenderer.invoke('vault:read', filePath),
     write: (filePath: string, content: string): Promise<void> =>

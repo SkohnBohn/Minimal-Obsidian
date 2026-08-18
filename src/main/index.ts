@@ -53,6 +53,21 @@ function registerIPC(win: BrowserWindow): void {
     return listFiles()
   })
 
+  ipcMain.handle('vault:setPath', async (_e, vaultDir: string) => {
+    try {
+      const stat = await fs.stat(vaultDir)
+      if (!stat.isDirectory()) return { error: 'Not a directory' }
+      setVaultPath(vaultDir)
+      store.set('vaultPath', vaultDir)
+      startWatcher(win)
+      return { files: await listFiles() }
+    } catch {
+      return { error: 'Path not found' }
+    }
+  })
+
+  ipcMain.handle('vault:getPath', () => getVaultPath())
+
   ipcMain.handle('vault:list', async () => {
     return listFiles()
   })

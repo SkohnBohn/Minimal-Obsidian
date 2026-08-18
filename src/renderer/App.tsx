@@ -8,6 +8,7 @@ import HotkeysPanel from './hotkeys/HotkeysPanel'
 import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
 import FileSwitcher from './modal/FileSwitcher'
+import VaultPanel from './vault/VaultPanel'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
@@ -42,7 +43,7 @@ export default function App() {
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
-    openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
+    openGraphTab, openHotkeysTab, openSettingsTab, openVaultTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
   } = useTabs()
@@ -89,8 +90,8 @@ export default function App() {
         setFiles(await window.api.vault.list())
         setVaultReady(true)
       } else {
-        const fileList = await window.api.vault.open()
-        if (fileList) { setFiles(fileList); setVaultReady(true) }
+        openVaultTab()
+        setVaultReady(true)
       }
     })()
   }, [])
@@ -222,14 +223,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler)
   }, [activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward])
 
-  if (!vaultReady) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--stone)' }}>
-        Opening vault…
-      </div>
-    )
-  }
-
   return (
     <div className="app">
       {/* Draggable titlebar strip — sits above everything, keeps traffic lights clear */}
@@ -263,10 +256,7 @@ export default function App() {
             className="rail-btn"
             data-tip="vault"
             style={{ marginTop: 'auto', fontSize: '10px' }}
-            onClick={async () => {
-              const fl = await window.api.vault.open()
-              if (fl) { setFiles(fl); setVaultReady(true) }
-            }}
+            onClick={openVaultTab}
           >
             ⬙
           </button>
@@ -303,6 +293,8 @@ export default function App() {
               <HotkeysPanel />
             ) : activeTab?.type === 'settings' ? (
               <SettingsPanel />
+            ) : activeTab?.type === 'vault' ? (
+              <VaultPanel onVaultSet={files => { setFiles(files); setVaultReady(true) }} />
             ) : activeTab ? (
               <>
                 <Editor
