@@ -20,6 +20,7 @@ export interface Tab {
   navHistory: NavEntry[]   // visited notes in this tab
   navIndex: number         // current position in navHistory
   isNaming?: boolean       // true for brand-new tabs until title is committed
+  lastUsed: number         // timestamp of last activation, for recency sorting
 }
 
 const SESSION_TABS_KEY = 'session.tabs'
@@ -30,7 +31,8 @@ function makeTab(path: string, name: string, content: string): Tab {
     id: uuidv4(), type: 'note', path, name,
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: content, contentVersion: 0,
-    navHistory: [{ path, name }], navIndex: 0
+    navHistory: [{ path, name }], navIndex: 0,
+    lastUsed: Date.now()
   }
 }
 
@@ -39,7 +41,7 @@ function makeGraphTab(): Tab {
     id: uuidv4(), type: 'graph', path: '', name: 'Graph',
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
-    navHistory: [], navIndex: 0
+    navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
@@ -48,7 +50,7 @@ function makeSettingsTab(): Tab {
     id: uuidv4(), type: 'settings', path: '', name: 'Settings',
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
-    navHistory: [], navIndex: 0
+    navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
@@ -57,7 +59,7 @@ function makeVaultTab(): Tab {
     id: uuidv4(), type: 'vault', path: '', name: 'Vault',
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
-    navHistory: [], navIndex: 0
+    navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
@@ -66,7 +68,7 @@ function makeHotkeysTab(): Tab {
     id: uuidv4(), type: 'hotkeys', path: '', name: 'Shortcuts',
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
-    navHistory: [], navIndex: 0
+    navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
@@ -76,6 +78,12 @@ export function useTabs() {
   const restored = useRef(false)
   const tabsRef = useRef<Tab[]>([])
   useEffect(() => { tabsRef.current = tabs }, [tabs])
+
+  const activateTab = useCallback((id: string | null) => {
+    if (!id) { setActiveTabId(null); return }
+    setActiveTabId(id)
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, lastUsed: Date.now() } : t))
+  }, [])
 
   // Restore session
   useEffect(() => {
@@ -114,21 +122,21 @@ export function useTabs() {
 
   const openTab = useCallback(async (path: string, name: string) => {
     const existing = tabsRef.current.find(t => t.path === path)
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const content = await window.api.vault.read(path)
     setTabs(prev => {
       const found = prev.find(t => t.path === path)
-      if (found) { setActiveTabId(found.id); return prev }
+      if (found) { activateTab(found.id); return prev }
       const newTab = makeTab(path, name, content)
-      setActiveTabId(newTab.id)
+      activateTab(newTab.id)
       return [...prev, newTab]
     })
-  }, [])
+  }, [activateTab])
 
   const openTabByName = useCallback(async (name: string) => {
     const nameLower = name.toLowerCase()
     const existing = tabsRef.current.find(t => t.name.toLowerCase() === nameLower)
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const files = await window.api.vault.list()
     // Case-insensitive match so [[Max Ernst]] and [[max ernst]] resolve to the same file.
     const file = files.find(f => f.name.toLowerCase() === nameLower)
@@ -136,13 +144,13 @@ export function useTabs() {
       // Secondary guard by path: catches stale tab state after external rename events,
       // where a tab still carries the old name but the disk file has the new path.
       const existingByPath = tabsRef.current.find(t => t.path === file.path)
-      if (existingByPath) { setActiveTabId(existingByPath.id); return }
+      if (existingByPath) { activateTab(existingByPath.id); return }
       await openTab(file.path, file.name)
     } else {
       const path = await window.api.vault.create(name)
       await openTab(path, name)
     }
-  }, [openTab])
+  }, [activateTab, openTab])
 
   // Navigate within the current tab (pushes history)
   const navigateInTab = useCallback(async (tabId: string, name: string) => {
@@ -160,7 +168,7 @@ export function useTabs() {
     // If another tab already shows this file, just switch to it — don't duplicate.
     // Two tabs pointing at the same path would race on auto-saves.
     const otherTab = tabsRef.current.find(t => t.id !== tabId && t.path === targetPath)
-    if (otherTab) { setActiveTabId(otherTab.id); return }
+    if (otherTab) { activateTab(otherTab.id); return }
 
     const content = await window.api.vault.read(targetPath)
     setTabs(prev => prev.map(t => {
@@ -234,7 +242,7 @@ export function useTabs() {
     const newTab: Tab = { ...makeTab(path, name, content), isNaming: true }
     setTabs(prev => {
       if (prev.find(t => t.path === path)) return prev
-      setActiveTabId(newTab.id)
+      activateTab(newTab.id)
       return [...prev, newTab]
     })
   }, [])
@@ -268,35 +276,35 @@ export function useTabs() {
 
   const openVaultTab = useCallback(() => {
     const existing = tabsRef.current.find(t => t.type === 'vault')
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const vt = makeVaultTab()
     setTabs(prev => [...prev, vt])
-    setActiveTabId(vt.id)
-  }, [])
+    activateTab(vt.id)
+  }, [activateTab])
 
   const openGraphTab = useCallback(() => {
     const existing = tabsRef.current.find(t => t.type === 'graph')
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const gt = makeGraphTab()
     setTabs(prev => [...prev, gt])
-    setActiveTabId(gt.id)
-  }, [])
+    activateTab(gt.id)
+  }, [activateTab])
 
   const openSettingsTab = useCallback(() => {
     const existing = tabsRef.current.find(t => t.type === 'settings')
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const st = makeSettingsTab()
     setTabs(prev => [...prev, st])
-    setActiveTabId(st.id)
-  }, [])
+    activateTab(st.id)
+  }, [activateTab])
 
   const openHotkeysTab = useCallback(() => {
     const existing = tabsRef.current.find(t => t.type === 'hotkeys')
-    if (existing) { setActiveTabId(existing.id); return }
+    if (existing) { activateTab(existing.id); return }
     const ht = makeHotkeysTab()
     setTabs(prev => [...prev, ht])
-    setActiveTabId(ht.id)
-  }, [])
+    activateTab(ht.id)
+  }, [activateTab])
 
   const reorderTab = useCallback((fromIdx: number, toIdx: number) => {
     setTabs(prev => {
@@ -322,7 +330,7 @@ export function useTabs() {
 
   return {
     tabs, activeTab, activeTabId,
-    setActiveTabId, openTab, openTabByName,
+    setActiveTabId: activateTab, openTab, openTabByName,
     navigateInTab, goBack, goForward,
     openVaultTab, openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,

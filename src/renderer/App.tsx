@@ -338,14 +338,10 @@ export default function App() {
 
       {showSwitcher && (
         <FileSwitcher
+          tabs={tabs}
           files={files}
-          specials={[
-            { name: 'Graph', onOpen: () => { openGraphTab(); setShowSwitcher(false) } },
-            { name: 'Settings', onOpen: () => { openSettingsTab(); setShowSwitcher(false) } },
-            { name: 'Shortcuts', onOpen: () => { openHotkeysTab(); setShowSwitcher(false) } },
-            { name: 'Vault', onOpen: () => { openVaultTab(); setShowSwitcher(false) } },
-          ]}
-          onOpen={name => handleOpenNote(name)}
+          onActivateTab={id => { setActiveTabId(id); setShowSwitcher(false) }}
+          onOpen={name => { handleOpenNote(name); setShowSwitcher(false) }}
           onClose={() => setShowSwitcher(false)}
         />
       )}

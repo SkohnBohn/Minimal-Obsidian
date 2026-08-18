@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Tab } from '../tabs/useTabs'
 
 interface FileEntry {
   name: string
@@ -6,48 +7,49 @@ interface FileEntry {
   mtime: number
 }
 
-interface SpecialEntry {
-  name: string
-  onOpen: () => void
-}
-
 interface FileSwitcherProps {
+  tabs: Tab[]
   files: FileEntry[]
-  specials: SpecialEntry[]
+  onActivateTab: (id: string) => void
   onOpen: (name: string) => void
   onClose: () => void
 }
 
-type ResultItem =
-  | { kind: 'file'; file: FileEntry }
-  | { kind: 'special'; name: string; onOpen: () => void }
-
-function buildResults(files: FileEntry[], specials: SpecialEntry[], query: string): ResultItem[] {
-  const q = query.toLowerCase()
-
-  const matchedSpecials: ResultItem[] = specials
-    .filter(s => !q || s.name.toLowerCase().includes(q))
-    .map(s => ({ kind: 'special', name: s.name, onOpen: s.onOpen }))
-
-  const matchedFiles: ResultItem[] = (
-    q
-      ? files
-          .filter(f => f.name.toLowerCase().includes(q))
-          .sort((a, b) => a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q))
-      : files.slice().sort((a, b) => b.mtime - a.mtime)
-  )
-    .slice(0, 20)
-    .map(f => ({ kind: 'file', file: f }))
-
-  return [...matchedSpecials, ...matchedFiles].slice(0, 20)
+interface ResultItem {
+  key: string
+  label: string
+  activate: () => void
 }
 
-export default function FileSwitcher({ files, specials, onOpen, onClose }: FileSwitcherProps) {
+function buildResults(tabs: Tab[], files: FileEntry[], query: string, onActivateTab: (id: string) => void, onOpen: (name: string) => void): ResultItem[] {
+  const q = query.toLowerCase()
+
+  // All open tabs sorted by lastUsed descending, filtered by query
+  const tabItems: ResultItem[] = [...tabs]
+    .sort((a, b) => b.lastUsed - a.lastUsed)
+    .filter(t => !q || t.name.toLowerCase().includes(q))
+    .map(t => ({ key: t.id, label: t.name, activate: () => onActivateTab(t.id) }))
+
+  // Files not already open as a tab, filtered by query
+  const openPaths = new Set(tabs.map(t => t.path).filter(Boolean))
+  const fileItems: ResultItem[] = files
+    .filter(f => !openPaths.has(f.path) && (!q || f.name.toLowerCase().includes(q)))
+    .sort((a, b) => q
+      ? a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q)
+      : b.mtime - a.mtime
+    )
+    .slice(0, 20)
+    .map(f => ({ key: f.path, label: f.name, activate: () => onOpen(f.name) }))
+
+  return [...tabItems, ...fileItems].slice(0, 20)
+}
+
+export default function FileSwitcher({ tabs, files, onActivateTab, onOpen, onClose }: FileSwitcherProps) {
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const results = buildResults(files, specials, query)
+  const results = buildResults(tabs, files, query, onActivateTab, onOpen)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => { setSelectedIdx(0) }, [query])
@@ -64,8 +66,7 @@ export default function FileSwitcher({ files, specials, onOpen, onClose }: FileS
         e.preventDefault()
         const target = results[selectedIdx]
         if (target) {
-          if (target.kind === 'special') target.onOpen()
-          else onOpen(target.file.name)
+          target.activate()
         } else if (query.trim()) {
           onOpen(query.trim())
         }
@@ -91,15 +92,11 @@ export default function FileSwitcher({ files, specials, onOpen, onClose }: FileS
         <div className="modal-results">
           {results.map((r, i) => (
             <div
-              key={r.kind === 'file' ? r.file.path : r.name}
-              className={`modal-result${i === selectedIdx ? ' selected' : ''}${r.kind === 'special' ? ' modal-result-special' : ''}`}
-              onClick={() => {
-                if (r.kind === 'special') r.onOpen()
-                else onOpen(r.file.name)
-                onClose()
-              }}
+              key={r.key}
+              className={`modal-result${i === selectedIdx ? ' selected' : ''}`}
+              onClick={() => { r.activate(); onClose() }}
             >
-              {r.kind === 'file' ? r.file.name : r.name}
+              {r.label}
             </div>
           ))}
           {!results.length && query && (
