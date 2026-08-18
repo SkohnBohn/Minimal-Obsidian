@@ -686,7 +686,8 @@ input {
 }
 
 .vault-path-input::placeholder {
-  color: var(--ash);
+  color: var(--stone);
+  opacity: 0.5;
 }
 
 .vault-panel-error {
@@ -700,12 +701,11 @@ input {
   letter-spacing: 0.06em;
   color: var(--stone);
   border: 1px solid var(--ash);
-  padding: 3px 10px;
+  padding: 3px 14px;
   cursor: pointer;
   background: transparent;
   transition: color 80ms;
-  width: 100%;
-  text-align: center;
+  align-self: center;
 }
 
 .vault-apply-btn:hover {
