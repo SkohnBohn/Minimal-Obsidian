@@ -85,7 +85,8 @@ function registerIPC(win: BrowserWindow): void {
   })
 
   ipcMain.handle('search:query', async (_e, query: string) => {
-    return search(query)
+    const includeSources = (store.get('includeSources') ?? true) as boolean
+    return search(query, includeSources)
   })
 
   ipcMain.handle('app:settings:get', (_e, key: string) => {

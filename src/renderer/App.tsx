@@ -4,6 +4,7 @@ import { useTabs } from './tabs/useTabs'
 import Editor from './editor/Editor'
 import GraphPanel from './graph/GraphPanel'
 import HotkeysPanel from './hotkeys/HotkeysPanel'
+import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
 import FileSwitcher from './modal/FileSwitcher'
 import { EditorState } from '@codemirror/state'
@@ -21,7 +22,7 @@ export default function App() {
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
-    openGraphTab, openHotkeysTab, renameTab,
+    openGraphTab, openHotkeysTab, openSettingsTab, renameTab,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
@@ -210,8 +211,16 @@ export default function App() {
           </button>
           <button
             className="rail-btn"
+            title="Settings"
+            style={{ marginTop: 'auto' }}
+            onClick={openSettingsTab}
+          >
+            ○
+          </button>
+          <button
+            className="rail-btn"
             title="Open vault folder"
-            style={{ marginTop: 'auto', fontSize: '10px' }}
+            style={{ fontSize: '10px' }}
             onClick={async () => {
               const fl = await window.api.vault.open()
               if (fl) { setFiles(fl); setVaultReady(true) }
@@ -245,6 +254,8 @@ export default function App() {
               />
             ) : activeTab?.type === 'hotkeys' ? (
               <HotkeysPanel />
+            ) : activeTab?.type === 'settings' ? (
+              <SettingsPanel />
             ) : activeTab ? (
               <>
                 <Editor

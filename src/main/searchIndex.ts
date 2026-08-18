@@ -10,7 +10,8 @@ interface DocRecord {
   id: string
   path: string
   name: string
-  content: string
+  content: string       // main content only — what FlexSearch indexes
+  sourcesContent: string
 }
 
 // @ts-ignore – FlexSearch types are loose
@@ -19,19 +20,37 @@ const index = new FlexSearch.Document({
   document: {
     id: 'id',
     index: ['name', 'content'],
-    store: ['path', 'name', 'content']
+    store: ['path', 'name', 'content', 'sourcesContent']
   }
 })
 
 const docs = new Map<string, DocRecord>()
 
-export function indexFile(path: string, name: string, content: string): void {
+const SEPARATOR_RE = /^[-_*]{3,}\s*$/
+const FOOTNOTE_DEF_RE = /^\[\^[^\]]+\]:/
+
+function splitSources(raw: string): { main: string; sources: string } {
+  const lines = raw.split('\n')
+  // Walk backwards to find the last separator-like line
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!SEPARATOR_RE.test(lines[i])) continue
+    // Check whether anything after it is a footnote definition
+    const after = lines.slice(i + 1)
+    if (after.some(l => FOOTNOTE_DEF_RE.test(l))) {
+      return { main: lines.slice(0, i).join('\n'), sources: after.join('\n') }
+    }
+  }
+  return { main: raw, sources: '' }
+}
+
+export function indexFile(path: string, name: string, rawContent: string): void {
   const id = path
   if (docs.has(id)) {
     // @ts-ignore
     index.remove(id)
   }
-  const record: DocRecord = { id, path, name, content }
+  const { main, sources } = splitSources(rawContent)
+  const record: DocRecord = { id, path, name, content: main, sourcesContent: sources }
   docs.set(id, record)
   // @ts-ignore
   index.add(record)
@@ -59,15 +78,12 @@ function buildSnippet(content: string, query: string): string {
   return `${pre}${before}<mark>${match}</mark>${after}${post}`
 }
 
-export async function search(query: string, limit = 20): Promise<SearchResult[]> {
+export async function search(query: string, includeSources: boolean, limit = 20): Promise<SearchResult[]> {
   if (!query.trim()) return []
 
   const seen = new Set<string>()
   const results: SearchResult[] = []
 
-  // FlexSearch tokenizes on non-alphanumeric chars, so purely symbolic queries
-  // (e.g. "---", "___") produce no tokens and return nothing. Only invoke it
-  // when the query contains at least one word character.
   if (/\w/.test(query)) {
     // @ts-ignore
     const rawResults = await index.searchAsync(query, { limit, enrich: true })
@@ -81,16 +97,17 @@ export async function search(query: string, limit = 20): Promise<SearchResult[]>
     }
   }
 
-  // Fallback: direct substring scan covers symbolic queries and fills gaps when
-  // FlexSearch finds nothing (e.g. query is a separator like "---" or "___").
   if (results.length < limit) {
     const q = query.toLowerCase()
     for (const doc of docs.values()) {
       if (results.length >= limit) break
       if (seen.has(doc.path)) continue
-      if (doc.content.toLowerCase().includes(q) || doc.name.toLowerCase().includes(q)) {
+      const searchable = includeSources ? doc.content + '\n' + doc.sourcesContent : doc.content
+      if (searchable.toLowerCase().includes(q) || doc.name.toLowerCase().includes(q)) {
         seen.add(doc.path)
-        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(doc.content, query) })
+        const snippetSrc = (includeSources && !doc.content.toLowerCase().includes(q))
+          ? doc.sourcesContent : doc.content
+        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(snippetSrc, query) })
       }
     }
   }

@@ -458,6 +458,42 @@ input {
   color: var(--link);
 }
 
+/* Settings panel */
+.settings-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.settings-section {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--stone);
+  width: 220px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  width: 220px;
+}
+
+.settings-row input[type="checkbox"] {
+  accent-color: var(--link);
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Hotkeys panel */
 .hotkeys-panel {
   flex: 1;
