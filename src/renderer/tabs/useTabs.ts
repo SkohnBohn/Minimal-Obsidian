@@ -9,7 +9,7 @@ export interface NavEntry {
 
 export interface Tab {
   id: string
-  type: 'note' | 'graph'
+  type: 'note' | 'graph' | 'hotkeys'
   path: string
   name: string
   isDirty: boolean
@@ -36,6 +36,15 @@ function makeTab(path: string, name: string, content: string): Tab {
 function makeGraphTab(): Tab {
   return {
     id: uuidv4(), type: 'graph', path: '', name: 'Graph',
+    isDirty: false, scrollPos: 0, cmState: null,
+    initialContent: '', contentVersion: 0,
+    navHistory: [], navIndex: 0
+  }
+}
+
+function makeHotkeysTab(): Tab {
+  return {
+    id: uuidv4(), type: 'hotkeys', path: '', name: 'Shortcuts',
     isDirty: false, scrollPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0
@@ -232,6 +241,14 @@ export function useTabs() {
     setActiveTabId(gt.id)
   }, [])
 
+  const openHotkeysTab = useCallback(() => {
+    const existing = tabsRef.current.find(t => t.type === 'hotkeys')
+    if (existing) { setActiveTabId(existing.id); return }
+    const ht = makeHotkeysTab()
+    setTabs(prev => [...prev, ht])
+    setActiveTabId(ht.id)
+  }, [])
+
   const renameTab = useCallback((tabId: string, newName: string, newPath: string) => {
     setTabs(prev => prev.map(t => {
       if (t.id !== tabId) return t
@@ -248,7 +265,7 @@ export function useTabs() {
     tabs, activeTab, activeTabId,
     setActiveTabId, openTab, openTabByName,
     navigateInTab, goBack, goForward,
-    openGraphTab, renameTab,
+    openGraphTab, openHotkeysTab, renameTab,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   }

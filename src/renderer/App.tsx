@@ -3,6 +3,7 @@ import TabBar from './tabs/TabBar'
 import { useTabs } from './tabs/useTabs'
 import Editor from './editor/Editor'
 import GraphPanel from './graph/GraphPanel'
+import HotkeysPanel from './hotkeys/HotkeysPanel'
 import SearchSidebar from './search/SearchSidebar'
 import FileSwitcher from './modal/FileSwitcher'
 import { EditorState } from '@codemirror/state'
@@ -20,7 +21,7 @@ export default function App() {
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
     openTab, openTabByName, navigateInTab, goBack, goForward,
-    openGraphTab, renameTab,
+    openGraphTab, openHotkeysTab, renameTab,
     closeTab, createNewTab, switchTab,
     updateTabState, markTabSaved
   } = useTabs()
@@ -155,6 +156,8 @@ export default function App() {
       const meta = e.metaKey || e.ctrlKey
       if (meta && !e.shiftKey && !e.altKey && e.key === 'o') {
         e.preventDefault(); setShowSwitcher(v => !v)
+      } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
+        e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
@@ -192,11 +195,11 @@ export default function App() {
         {/* Left rail */}
         <div className="rail">
           <button
-            className={`rail-btn${showSidebar ? ' active' : ''}`}
-            title="Search"
-            onClick={() => setShowSidebar(v => !v)}
+            className="rail-btn"
+            title="Shortcuts"
+            onClick={openHotkeysTab}
           >
-            O
+            ?
           </button>
           <button
             className="rail-btn"
@@ -240,6 +243,8 @@ export default function App() {
                 activeNoteName={null}
                 onOpenNote={handleOpenNote}
               />
+            ) : activeTab?.type === 'hotkeys' ? (
+              <HotkeysPanel />
             ) : activeTab ? (
               <>
                 <Editor
