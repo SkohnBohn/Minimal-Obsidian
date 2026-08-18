@@ -507,7 +507,7 @@ input {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ash);
+  color: var(--stone);
   width: 220px;
 }
 
@@ -522,11 +522,29 @@ input {
 }
 
 .settings-row input[type="checkbox"] {
-  accent-color: var(--link);
+  -webkit-appearance: none;
+  appearance: none;
   width: 13px;
   height: 13px;
+  border: 1px solid var(--ash);
+  background: var(--bg);
   cursor: pointer;
   flex-shrink: 0;
+  position: relative;
+}
+
+.settings-row input[type="checkbox"]:checked {
+  border-color: var(--stone);
+}
+
+.settings-row input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -3px;
+  left: 1px;
+  font-size: 11px;
+  color: var(--stone);
+  line-height: 1;
 }
 
 /* Hotkeys panel */
