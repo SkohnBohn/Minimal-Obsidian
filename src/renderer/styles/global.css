@@ -502,6 +502,13 @@ input {
   color: var(--ink);
 }
 
+.modal-result-special {
+  color: var(--stone);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* Graph panel */
 .graph-panel {
   flex: 1;
@@ -647,7 +654,7 @@ input {
 
 /* Vault panel */
 .vault-path-input {
-  width: 220px;
+  min-width: 220px;
   font-size: 12px;
   font-family: var(--font);
   color: var(--ink);

@@ -339,6 +339,12 @@ export default function App() {
       {showSwitcher && (
         <FileSwitcher
           files={files}
+          specials={[
+            { name: 'Graph', onOpen: () => { openGraphTab(); setShowSwitcher(false) } },
+            { name: 'Settings', onOpen: () => { openSettingsTab(); setShowSwitcher(false) } },
+            { name: 'Shortcuts', onOpen: () => { openHotkeysTab(); setShowSwitcher(false) } },
+            { name: 'Vault', onOpen: () => { openVaultTab(); setShowSwitcher(false) } },
+          ]}
           onOpen={name => handleOpenNote(name)}
           onClose={() => setShowSwitcher(false)}
         />
