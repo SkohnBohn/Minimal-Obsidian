@@ -15,7 +15,6 @@ export default function VaultPanel({ onVaultSet }: Props) {
   useEffect(() => {
     window.api.vault.getPath().then(p => {
       setCurrentPath(p)
-      if (p) setPathInput(p)
     })
     inputRef.current?.focus()
   }, [])
@@ -26,17 +25,15 @@ export default function VaultPanel({ onVaultSet }: Props) {
     setError(null)
     const result = await window.api.vault.setPath(p)
     if (result.error) { setError(result.error); return }
-    if (result.files) { setCurrentPath(p); onVaultSet(result.files) }
+    if (result.files) { setCurrentPath(p); setPathInput(''); onVaultSet(result.files) }
   }
 
   return (
-    <div className="settings-panel">
-      <div className="settings-section">vault path</div>
+    <div className="vault-panel">
+      <div className="vault-panel-section">current vault path</div>
 
       {currentPath && (
-        <div style={{ fontSize: 12, color: 'var(--stone)', whiteSpace: 'nowrap' }}>
-          {currentPath}
-        </div>
+        <div className="vault-panel-path">{currentPath}</div>
       )}
 
       <input
@@ -45,17 +42,15 @@ export default function VaultPanel({ onVaultSet }: Props) {
         value={pathInput}
         onChange={e => { setPathInput(e.target.value); setError(null) }}
         onKeyDown={e => { if (e.key === 'Enter') apply() }}
-        placeholder="/Users/you/notes"
+        placeholder="set vault path"
         spellCheck={false}
       />
 
       {error && (
-        <div style={{ fontSize: 12, color: '#a03030', width: 220 }}>{error}</div>
+        <div className="vault-panel-error">{error}</div>
       )}
 
-      <button className="vault-apply-btn" onClick={apply}>
-        set
-      </button>
+      <button className="vault-apply-btn" onClick={apply}>set</button>
     </div>
   )
 }
