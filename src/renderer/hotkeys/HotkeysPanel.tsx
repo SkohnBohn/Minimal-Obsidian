@@ -5,15 +5,14 @@ const GROUPS: [string, [string, string][]][] = [
     ['⌘O', 'open file'],
     ['⌘N', 'new note'],
     ['⌘W', 'close tab'],
-    ['Esc', 'close modal'],
+    ['Esc', 'close search / switcher'],
   ]],
   ['search', [
     ['⌘F', 'find in note'],
     ['⌘⇧F', 'search notes'],
   ]],
   ['navigation', [
-    ['⌃⇥', 'next tab'],
-    ['⌃⇧⇥', 'prev tab'],
+    ['⌃⇥ / ⌃⇧⇥', 'next / prev tab'],
     ['⌘⌥←', 'back'],
     ['⌘⌥→', 'forward'],
   ]],
