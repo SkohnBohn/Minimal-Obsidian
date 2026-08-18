@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 interface FileEntry {
   name: string
   path: string
+  mtime: number
 }
 
 interface FileSwitcherProps {
@@ -12,7 +13,9 @@ interface FileSwitcherProps {
 }
 
 function fuzzyFilter(files: FileEntry[], query: string): FileEntry[] {
-  if (!query) return files.slice(0, 20)
+  if (!query) {
+    return files.slice().sort((a, b) => b.mtime - a.mtime).slice(0, 20)
+  }
   const q = query.toLowerCase()
   return files
     .filter(f => f.name.toLowerCase().includes(q))

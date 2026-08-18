@@ -472,7 +472,7 @@ input {
 }
 
 .modal-result.selected {
-  color: var(--link);
+  color: var(--ink);
 }
 
 /* Graph panel */
