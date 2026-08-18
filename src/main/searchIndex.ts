@@ -67,11 +67,19 @@ export function removeFile(path: string): void {
 function buildSnippet(content: string, query: string): string {
   const lower = content.toLowerCase()
   const idx = lower.indexOf(query.toLowerCase())
-  if (idx === -1) return content.slice(0, 100)
-  const start = Math.max(0, idx - 50)
-  const end = Math.min(content.length, idx + query.length + 50)
-  const pre = start > 0 ? '…' : ''
-  const post = end < content.length ? '…' : ''
+  if (idx === -1) {
+    // Matched via another field (e.g. title) — show first non-empty line as preview
+    return (content.split('\n').find(l => l.trim()) ?? '').slice(0, 120)
+  }
+  // Scope to the line that contains the match so the highlight is always visible
+  const lineStart = content.lastIndexOf('\n', idx - 1) + 1
+  const lineEndRaw = content.indexOf('\n', idx)
+  const lineEnd = lineEndRaw === -1 ? content.length : lineEndRaw
+  // Short pre-context so the marked word falls in the first visible line
+  const start = Math.max(lineStart, idx - 30)
+  const end = Math.min(lineEnd, idx + query.length + 90)
+  const pre = start > lineStart ? '…' : ''
+  const post = end < lineEnd ? '…' : ''
   const before = content.slice(start, idx)
   const match = content.slice(idx, idx + query.length)
   const after = content.slice(idx + query.length, end)
@@ -92,7 +100,9 @@ export async function search(query: string, includeSources: boolean, limit = 20)
         const doc: DocRecord = r.doc
         if (seen.has(doc.path)) continue
         seen.add(doc.path)
-        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(doc.content, query) })
+        const snippetSrc = doc.content.toLowerCase().includes(query.toLowerCase())
+          ? doc.content : (doc.sourcesContent || doc.content)
+        results.push({ path: doc.path, name: doc.name, snippet: buildSnippet(snippetSrc, query) })
       }
     }
   }
