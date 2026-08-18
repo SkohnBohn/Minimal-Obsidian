@@ -6,6 +6,7 @@ import { search } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
 import { markdownDecorationsPlugin } from './markdownDecorations'
+import { insertFootnoteRef, addFootnoteDef, footnoteTooltipExt } from './footnoteExt'
 import type { Tab } from '../tabs/useTabs'
 
 interface EditorProps {
@@ -73,7 +74,12 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     return [
       history(),
       search({ top: false }),
-      keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+      keymap.of([
+        { key: 'Mod-Shift-o', run: insertFootnoteRef },
+        { key: 'Mod-Shift-p', run: addFootnoteDef },
+        ...defaultKeymap, ...historyKeymap, indentWithTab
+      ]),
+      footnoteTooltipExt,
       markdown(),
       EditorView.lineWrapping,
       EditorView.theme({

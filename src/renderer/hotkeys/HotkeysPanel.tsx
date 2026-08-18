@@ -10,6 +10,8 @@ const SHORTCUTS = [
   ['⇧⌥→', 'next tab'],
   ['⌘⌥←', 'back'],
   ['⌘⌥→', 'forward'],
+  ['⌘⇧O', 'insert source ref'],
+  ['⌘⇧P', 'add source entry'],
   ['Esc', 'close modal'],
 ]
 
