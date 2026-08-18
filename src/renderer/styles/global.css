@@ -663,13 +663,12 @@ input {
 }
 
 .vault-apply-btn {
-  width: 220px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--stone);
   border: 1px solid var(--ash);
-  padding: 4px 0;
+  padding: 3px 14px;
   cursor: pointer;
   background: transparent;
   transition: color 80ms;

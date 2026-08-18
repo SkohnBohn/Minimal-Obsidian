@@ -34,7 +34,7 @@ export default function VaultPanel({ onVaultSet }: Props) {
       <div className="settings-section">vault path</div>
 
       {currentPath && (
-        <div style={{ fontSize: 12, color: 'var(--stone)', width: 220, wordBreak: 'break-all', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 12, color: 'var(--stone)', width: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {currentPath}
         </div>
       )}
@@ -54,7 +54,7 @@ export default function VaultPanel({ onVaultSet }: Props) {
       )}
 
       <button className="vault-apply-btn" onClick={apply}>
-        set vault
+        set
       </button>
     </div>
   )
