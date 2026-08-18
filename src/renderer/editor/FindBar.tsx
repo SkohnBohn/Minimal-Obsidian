@@ -85,7 +85,7 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onClose()
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+    } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 'f') {
       e.preventDefault()
       e.stopPropagation()
       onClose()
