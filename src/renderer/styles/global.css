@@ -309,59 +309,51 @@ input {
 .cm-search.cm-panel {
   background: var(--bg-inset);
   border-top: 1px solid var(--ash);
-  border-bottom: none;
-  padding: 6px 12px;
+  padding: 5px 12px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
 }
 
-.cm-search.cm-panel input[type="text"],
-.cm-search.cm-panel .cm-textfield {
+/* Show only the search input */
+.cm-search.cm-panel input[name="search"] {
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--ash);
   color: var(--ink);
   font-family: var(--font);
   font-size: 13px;
-  padding: 2px 4px;
+  padding: 0;
   outline: none;
-  width: 180px;
+  flex: 1;
 }
 
-.cm-search.cm-panel input[type="text"]:focus,
-.cm-search.cm-panel .cm-textfield:focus {
-  border-bottom-color: var(--link);
+/* Hide everything except the close button */
+.cm-search.cm-panel button[name="next"],
+.cm-search.cm-panel button[name="prev"],
+.cm-search.cm-panel button[name="select"],
+.cm-search.cm-panel label,
+.cm-search.cm-panel input[name="replace"],
+.cm-search.cm-panel button[name="replace"],
+.cm-search.cm-panel button[name="replaceAll"],
+.cm-search.cm-panel br {
+  display: none;
 }
 
-.cm-search.cm-panel button,
-.cm-search.cm-panel .cm-button {
+/* Minimal close button */
+.cm-search.cm-panel button[name="close"] {
   background: none;
   border: none;
   color: var(--stone);
-  font-family: var(--font);
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 2px;
+  padding: 0;
+  opacity: 0.5;
 }
 
-.cm-search.cm-panel button:hover,
-.cm-search.cm-panel .cm-button:hover {
-  color: var(--ink);
-  background: var(--ash);
+.cm-search.cm-panel button[name="close"]:hover {
+  opacity: 1;
 }
-
-.cm-search.cm-panel label {
-  font-size: 12px;
-  color: var(--stone);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-}
-
-.cm-search.cm-panel br { display: none; }
 
 /* Match highlights */
 .cm-searchMatch {
