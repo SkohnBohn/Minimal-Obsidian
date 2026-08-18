@@ -30,6 +30,7 @@ export default function App() {
     }, 120)
   }, [])
   const [showFind, setShowFind] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
   const activeEditorView = useRef<EditorView | null>(null)
   const handleViewReady = useCallback((view: EditorView | null) => {
     activeEditorView.current = view
@@ -333,7 +334,12 @@ export default function App() {
       )}
 
       {showFind && (
-        <FindBar view={activeEditorView.current} onClose={() => setShowFind(false)} />
+        <FindBar
+          view={activeEditorView.current}
+          query={findQuery}
+          onQuery={setFindQuery}
+          onClose={() => setShowFind(false)}
+        />
       )}
 
       {saveError && (

@@ -1,17 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { EditorView } from '@codemirror/view'
 import { setSearchQuery, findNext, SearchQuery } from '@codemirror/search'
 
 interface Props {
   view: EditorView | null
+  query: string
+  onQuery: (q: string) => void
   onClose: () => void
 }
 
-export default function FindBar({ view, onClose }: Props) {
-  const [query, setQuery] = useState('')
+export default function FindBar({ view, query, onQuery, onClose }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }, [])
 
   useEffect(() => {
     if (!view) return
@@ -29,8 +33,12 @@ export default function FindBar({ view, onClose }: Props) {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (view && query) findNext(view)
-    } else if (e.key === 'Escape' || ((e.metaKey || e.ctrlKey) && e.key === 'f')) {
+    } else if (e.key === 'Escape') {
       e.preventDefault()
+      onClose()
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      e.preventDefault()
+      e.stopPropagation()  // prevent App.tsx window handler from re-opening
       onClose()
     }
   }
@@ -41,7 +49,7 @@ export default function FindBar({ view, onClose }: Props) {
         ref={inputRef}
         className="find-bar-input"
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={e => onQuery(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="find"
         spellCheck={false}
