@@ -159,7 +159,8 @@ export const footnoteEnterCommand: Command = (view) => {
     if (col < m.index || col > m.index + m[0].length) continue
     const n = parseInt(m[1])
     if (!n) continue
-    view.dispatch({ selection: { anchor: line.from + m.index + m[0].length } })
+    const after = line.from + m.index + m[0].length
+    view.dispatch({ changes: { from: after, insert: ' ' }, selection: { anchor: after + 1 } })
     return true
   }
   return false
