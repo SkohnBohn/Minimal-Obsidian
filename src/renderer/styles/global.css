@@ -657,9 +657,17 @@ input {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  padding: 48px 0 0 64px;
+  align-items: center;
+  padding-top: 48px;
   gap: 14px;
+}
+
+.vault-panel-section,
+.vault-panel-path,
+.vault-path-input,
+.vault-panel-error,
+.vault-apply-btn {
+  width: 220px;
 }
 
 .vault-panel-section {
@@ -672,7 +680,7 @@ input {
 .vault-panel-path {
   font-size: 12px;
   color: var(--stone);
-  white-space: nowrap;
+  word-break: break-all;
 }
 
 .vault-path-input {
@@ -684,7 +692,6 @@ input {
   border-bottom: 1px solid var(--ash);
   padding: 3px 0;
   outline: none;
-  min-width: 220px;
 }
 
 .vault-path-input::placeholder {
