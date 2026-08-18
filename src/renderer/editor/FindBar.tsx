@@ -18,8 +18,12 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
   }, [])
 
   useEffect(() => {
-    if (!view) return
-    view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) })
+    if (view) {
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) })
+    } else if (query) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).find(query, false, false, true)
+    }
   }, [query, view])
 
   // Clear highlights when bar closes
@@ -29,10 +33,17 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
     }
   }, [view])
 
+  function nativeFindNext() {
+    if (!query) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(window as any).find(query, false, false, true)
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (view && query) findNext(view)
+      if (view) { if (query) findNext(view) }
+      else nativeFindNext()
     } else if (e.key === 'Escape') {
       e.preventDefault()
       onClose()

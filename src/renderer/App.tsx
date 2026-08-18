@@ -199,7 +199,7 @@ export default function App() {
         e.preventDefault(); setShowSwitcher(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault()
-        if (activeTab?.type === 'note') setShowFind(v => !v)
+        if (activeTab) setShowFind(v => !v)
       } else if (meta && e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
