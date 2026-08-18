@@ -48,10 +48,19 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
   const [tooltip, setTooltip] = useState<{ x: number; y: number; name: string } | null>(null)
 
   // Keep refs current and redraw on change
-  useEffect(() => { activeNoteRef.current = activeNoteName; draw() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [activeNoteName])
-  useEffect(() => { highlightNamesRef.current = highlightNames; draw() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [highlightNames])
+  useEffect(() => {
+    activeNoteRef.current = activeNoteName
+    draw()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNoteName])
 
-  function draw() {
+  useEffect(() => {
+    highlightNamesRef.current = highlightNames
+    draw(highlightNames)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightNames])
+
+  function draw(hlOverride?: Set<string>) {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -61,7 +70,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
     const edges = edgesRef.current
     const hover = hoverNodeRef.current
     const active = activeNoteRef.current
-    const hlNames = highlightNamesRef.current
+    const hlNames = hlOverride !== undefined ? hlOverride : highlightNamesRef.current
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     ctx.save()

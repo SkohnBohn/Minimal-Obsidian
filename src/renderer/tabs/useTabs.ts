@@ -74,11 +74,14 @@ export function useTabs() {
     restored.current = true
     ;(async () => {
       const saved = (await window.api.settings.get(SESSION_TABS_KEY)) as
-        | Array<{ path: string; name: string }> | undefined
+        | Array<{ path: string; name: string; type?: string }> | undefined
       const savedActive = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as string | undefined
       if (!saved?.length) return
       const restoredTabs: Tab[] = []
-      for (const { path, name } of saved) {
+      for (const { path, name, type } of saved) {
+        if (type === 'graph') { restoredTabs.push(makeGraphTab()); continue }
+        if (type === 'hotkeys') { restoredTabs.push(makeHotkeysTab()); continue }
+        if (type === 'settings') { restoredTabs.push(makeSettingsTab()); continue }
         let content = ''
         try { content = await window.api.vault.read(path) } catch { continue }
         restoredTabs.push(makeTab(path, name, content))
@@ -91,7 +94,7 @@ export function useTabs() {
   }, [])
 
   useEffect(() => {
-    window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({ path: t.path, name: t.name })))
+    window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({ path: t.path, name: t.name, type: t.type })))
   }, [tabs])
 
   useEffect(() => {

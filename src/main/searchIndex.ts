@@ -19,7 +19,7 @@ const index = new FlexSearch.Document({
   tokenize: 'forward',
   document: {
     id: 'id',
-    index: ['name', 'content'],
+    index: ['content'],
     store: ['path', 'name', 'content', 'sourcesContent']
   }
 })
@@ -123,7 +123,7 @@ export async function search(query: string, includeSources: boolean, limit = 20)
       if (results.length >= limit) break
       if (seen.has(doc.path)) continue
       const searchable = includeSources ? doc.content + '\n' + doc.sourcesContent : doc.content
-      if (searchable.toLowerCase().includes(q) || doc.name.toLowerCase().includes(q)) {
+      if (searchable.toLowerCase().includes(q)) {
         seen.add(doc.path)
         const snippetSrc = (includeSources && !doc.content.toLowerCase().includes(q))
           ? doc.sourcesContent : doc.content
