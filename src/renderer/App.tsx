@@ -77,6 +77,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    window.api.settings.get('theme').then(t => {
+      document.documentElement.dataset.theme = (t as string | undefined) ?? 'solace'
+    })
+  }, [])
+
+  useEffect(() => {
     ;(async () => {
       const savedVault = await window.api.settings.get('vaultPath') as string | undefined
       if (savedVault) {

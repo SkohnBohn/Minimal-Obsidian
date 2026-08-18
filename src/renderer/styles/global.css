@@ -396,8 +396,8 @@ input {
 .cm-scroller { overflow: auto; font-family: var(--font); }
 .cm-cursor { border-left-color: var(--ink); }
 .cm-activeLine { background: transparent !important; }
-.cm-selectionBackground { background: #d4c89a !important; }
-.cm-focused .cm-selectionBackground { background: #d4c89a !important; }
+.cm-selectionBackground { background: var(--select) !important; }
+.cm-focused .cm-selectionBackground { background: var(--select) !important; }
 
 /* Wiki-link styles */
 .cm-wikilink-existing {
@@ -587,6 +587,35 @@ input {
   font-size: 11px;
   color: var(--stone);
   line-height: 1;
+}
+
+/* Theme picker */
+.settings-theme-row {
+  display: flex;
+  gap: 6px;
+  width: 220px;
+}
+
+.settings-theme-btn {
+  flex: 1;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--stone);
+  border: 1px solid var(--ash);
+  padding: 4px 0;
+  cursor: pointer;
+  background: transparent;
+  transition: color 80ms;
+}
+
+.settings-theme-btn.active {
+  color: var(--ink);
+  border-color: var(--stone);
+}
+
+.settings-theme-btn:hover:not(.active) {
+  color: var(--ink);
 }
 
 /* Hotkeys panel */

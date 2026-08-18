@@ -1,10 +1,12 @@
 :root {
+  /* Solace (default) */
   --bg:       #fcf6e3;
   --bg-inset: #f3ecda;
   --ink:      #262626;
   --stone:    #595959;
   --ash:      #e6e5e5;
   --link:     #8b7040;
+  --select:   #d4c89a;
 
   --rail-w:      32px;
   --tab-h:       36px;
@@ -12,4 +14,24 @@
   --max-content: 720px;
   --font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --mono:        'SF Mono', 'Fira Mono', 'Consolas', monospace;
+}
+
+[data-theme="light"] {
+  --bg:       #fafafa;
+  --bg-inset: #f2f2f2;
+  --ink:      #1a1a1a;
+  --stone:    #6b6b6b;
+  --ash:      #e0e0e0;
+  --link:     #5a6a72;
+  --select:   #ccdde8;
+}
+
+[data-theme="dark"] {
+  --bg:       #1e1e1e;
+  --bg-inset: #161616;
+  --ink:      #dedede;
+  --stone:    #888888;
+  --ash:      #2d2d2d;
+  --link:     #b8984a;
+  --select:   #3a3220;
 }
