@@ -163,9 +163,9 @@ export default function App() {
         e.preventDefault(); createNewTab()
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
         e.preventDefault(); if (activeTabId) handleCloseTab(activeTabId)
-      } else if (meta && e.shiftKey && !e.altKey && e.key === 'ArrowLeft') {
+      } else if (!meta && e.shiftKey && e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault(); switchTab('prev')
-      } else if (meta && e.shiftKey && !e.altKey && e.key === 'ArrowRight') {
+      } else if (!meta && e.shiftKey && e.altKey && e.key === 'ArrowRight') {
         e.preventDefault(); switchTab('next')
       } else if (meta && e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault(); if (activeTabId) goBack(activeTabId)
