@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron'
 import path from 'path'
-import { pathToFileURL } from 'url'
+import { promises as fsAsync } from 'fs'
 import Store from 'electron-store'
 import {
   setVaultPath,
@@ -125,6 +125,11 @@ function registerIPC(win: BrowserWindow): void {
 }
 
 app.whenReady().then(() => {
+  const ASSET_MIME: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml'
+  }
+
   // Serve vault files as vault-asset://img/<filename>
   protocol.handle('vault-asset', async (request) => {
     try {
@@ -132,12 +137,16 @@ app.whenReady().then(() => {
       const filename = decodeURIComponent(url.pathname.slice(1))
       const vaultDir = getVaultPath()
       if (!vaultDir || !filename) return new Response('Not found', { status: 404 })
-      const filePath = path.join(vaultDir, filename)
-      if (!filePath.startsWith(vaultDir + path.sep) && filePath !== vaultDir)
+      const filePath = path.resolve(path.join(vaultDir, filename))
+      const vaultResolved = path.resolve(vaultDir)
+      if (!filePath.startsWith(vaultResolved + path.sep))
         return new Response('Forbidden', { status: 403 })
-      return net.fetch(pathToFileURL(filePath).href)
+      const data = await fsAsync.readFile(filePath)
+      const ext = path.extname(filename).slice(1).toLowerCase()
+      const mime = ASSET_MIME[ext] ?? 'application/octet-stream'
+      return new Response(data, { headers: { 'content-type': mime } })
     } catch {
-      return new Response('Error', { status: 500 })
+      return new Response('Not found', { status: 404 })
     }
   })
 
