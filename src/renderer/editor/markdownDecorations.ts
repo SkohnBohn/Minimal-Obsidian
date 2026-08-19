@@ -36,8 +36,8 @@ class HRWidget extends WidgetType {
 
 // Matches [^1], [^note], [^multi-word] but not footnote definitions [^1]:
 const FOOTNOTE_RE = /\[\^([^\]]+)\](?!:)/g
-// Matches ---, ___, *** on a line by themselves
-const HR_RE = /^(---|___|[*]{3,})\s*$/
+// Matches 3+ chars from [-_] in any combination on a line by themselves
+const HR_RE = /^[-_]{3,}\s*$/
 
 function buildDecorations(state: EditorState): DecorationSet {
   const cursor = state.selection.main.head
