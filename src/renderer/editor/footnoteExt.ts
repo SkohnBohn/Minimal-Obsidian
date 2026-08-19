@@ -15,10 +15,11 @@ export const insertFootnoteRef: Command = (view) => {
   return true
 }
 
-// ── ⌘⇧P — append next [^N]: definition at the bottom ────────────────────────
+// ── ⌘⇧P — insert [^N] at cursor + append [^N]: definition at the bottom ─────
 export const addFootnoteDef: Command = (view) => {
   const doc = view.state.doc.toString()
   const lines = doc.split('\n')
+  const { from: cursorPos } = view.state.selection.main
 
   // Find last [^N]: definition and highest N
   const defLineRe = /^\[\^(\d+)\]:/
@@ -30,6 +31,7 @@ export const addFootnoteDef: Command = (view) => {
   }
 
   const nextN = maxN + 1
+  const ref = `[^${nextN}]`
   const newDef = `[^${nextN}]: `
 
   if (lastDefLineIdx === -1) {
@@ -37,17 +39,24 @@ export const addFootnoteDef: Command = (view) => {
     let lastTextIdx = lines.length - 1
     while (lastTextIdx >= 0 && lines[lastTextIdx].trim() === '') lastTextIdx--
     const insertLine = view.state.doc.line(lastTextIdx + 1)
-    const insert = '\n'.repeat(10) + '___\n' + newDef
+    const defInsert = '\n'.repeat(10) + '___\n' + newDef
+    // Two changes in original-doc coordinates; cursorPos < insertLine.to always
     view.dispatch({
-      changes: { from: insertLine.to, insert },
-      selection: { anchor: insertLine.to + insert.length }
+      changes: [
+        { from: cursorPos, insert: ref },
+        { from: insertLine.to, insert: defInsert }
+      ],
+      selection: { anchor: insertLine.to + ref.length + defInsert.length }
     })
   } else {
     const defLine = view.state.doc.line(lastDefLineIdx + 1)
-    const insert = '\n' + newDef
+    const defInsert = '\n' + newDef
     view.dispatch({
-      changes: { from: defLine.to, insert },
-      selection: { anchor: defLine.to + insert.length }
+      changes: [
+        { from: cursorPos, insert: ref },
+        { from: defLine.to, insert: defInsert }
+      ],
+      selection: { anchor: defLine.to + ref.length + defInsert.length }
     })
   }
 
