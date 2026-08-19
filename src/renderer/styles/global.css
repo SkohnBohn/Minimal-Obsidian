@@ -440,13 +440,15 @@ input {
 }
 
 .cm-image-wrap {
-  display: block;
-  margin: 6px 0;
+  display: inline-block;
+  vertical-align: middle;
+  margin: 2px 4px 2px 0;
 }
 
 .cm-image-embed {
-  display: block;
+  display: inline-block;
   max-width: 100%;
+  vertical-align: middle;
   border-radius: 2px;
 }
 
