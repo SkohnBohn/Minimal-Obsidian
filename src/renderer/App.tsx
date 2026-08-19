@@ -35,6 +35,7 @@ export default function App() {
   const handleViewReady = useCallback((view: EditorView | null) => {
     activeEditorView.current = view
   }, [])
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [vaultReady, setVaultReady] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
@@ -59,6 +60,17 @@ export default function App() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabId])
+
+  const enterTitleEdit = useCallback(() => {
+    if (!activeTab) return
+    setTitleInput(activeTab.name)
+    setEditingTitle(true)
+    // focus happens via autoFocus on the input after render
+    setTimeout(() => {
+      titleInputRef.current?.focus()
+      titleInputRef.current?.select()
+    }, 0)
+  }, [activeTab])
 
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const pendingUnmountWrites = useRef<Promise<void>[]>([])
@@ -294,6 +306,7 @@ export default function App() {
                   header={
                     editingTitle
                       ? <input
+                          ref={titleInputRef}
                           className="note-title note-title-input"
                           value={titleInput}
                           placeholder={activeTab.name}
@@ -301,6 +314,11 @@ export default function App() {
                           onBlur={commitRename}
                           onKeyDown={e => {
                             if (e.key === 'Enter') {
+                              commitRename()
+                              setTimeout(() => activeEditorView.current?.focus(), 0)
+                            }
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault()
                               commitRename()
                               setTimeout(() => activeEditorView.current?.focus(), 0)
                             }
@@ -320,6 +338,7 @@ export default function App() {
                   onContentChange={handleContentChange}
                   onEditorUnmount={handleEditorUnmount}
                   onViewReady={handleViewReady}
+                  onEscapeToTitle={enterTitleEdit}
                 />
               </>
             ) : (

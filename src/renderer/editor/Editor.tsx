@@ -20,9 +20,10 @@ interface EditorProps {
   onContentChange: (tabId: string, content: string, state: EditorState, scrollPos: number) => void
   onEditorUnmount: (tabId: string, capturedPath: string, content: string) => void
   onViewReady: (view: EditorView | null) => void
+  onEscapeToTitle?: () => void
 }
 
-export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange, onEditorUnmount, onViewReady }: EditorProps) {
+export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenNote, onContentChange, onEditorUnmount, onViewReady, onEscapeToTitle }: EditorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
 
@@ -31,7 +32,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
 
     const initialState = tab.cmState ?? EditorState.create({
       doc: tab.initialContent ?? '',
-      extensions: buildExtensions(tab.id, noteNames, onNavigateNote, onOpenNote, onContentChange)
+      extensions: buildExtensions(tab.id, noteNames, onNavigateNote, onOpenNote, onContentChange, onEscapeToTitle)
     })
 
     let view: EditorView
@@ -71,7 +72,8 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     names: string[],
     navigate: (n: string) => void,
     openNewTab: (n: string) => void,
-    onChange: EditorProps['onContentChange']
+    onChange: EditorProps['onContentChange'],
+    escapeToTitle?: () => void
   ) {
     return [
       history(),
@@ -80,6 +82,16 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       keymap.of([
         { key: 'Mod-Shift-o', run: insertFootnoteRef },
         { key: 'Mod-Shift-p', run: addFootnoteDef },
+        {
+          key: 'ArrowUp',
+          run(view) {
+            if (!escapeToTitle) return false
+            const { head } = view.state.selection.main
+            if (view.state.doc.lineAt(head).number !== 1) return false
+            escapeToTitle()
+            return true
+          }
+        },
         ...defaultKeymap, ...historyKeymap, indentWithTab
       ]),
       footnoteTooltipExt,
