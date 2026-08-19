@@ -313,7 +313,7 @@ input {
 /* Note title */
 .note-title {
   display: block;
-  padding: 24px 0 16px;
+  padding: 24px 0 9px;
   font-size: 1.75em;
   font-weight: 700;
   line-height: 1.25;
