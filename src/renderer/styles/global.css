@@ -575,6 +575,21 @@ input {
   color: var(--link);
 }
 
+/* Footnote definition label [^1]: → small superscript */
+.cm-footnote-def-label {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--stone);
+  margin-right: 2px;
+}
+
+/* Footnote definition body text */
+.cm-footnote-def-content {
+  font-size: 0.88em;
+  opacity: 0.55;
+}
+
 /* Settings panel */
 .settings-panel {
   flex: 1;
