@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol, globalShortcut } from 'electron'
 import path from 'path'
 import { promises as fsAsync } from 'fs'
 import Store from 'electron-store'
@@ -174,6 +174,9 @@ app.whenReady().then(() => {
   }
 
   registerIPC(win)
+
+  // Cmd+Option+I opens DevTools
+  globalShortcut.register('CommandOrControl+Alt+I', () => win.webContents.toggleDevTools())
 
   // Give the renderer a chance to flush unsaved writes before quitting.
   let readyToQuit = false

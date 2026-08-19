@@ -29,6 +29,8 @@ class ImageWidget extends WidgetType {
     const cached = dataUrlCache.get(this.filename)
     if (cached) {
       img.src = cached
+    } else if (typeof window.api?.vault?.readAsset !== 'function') {
+      img.insertAdjacentText('afterend', ' [readAsset not available]')
     } else {
       window.api.vault.readAsset(this.filename)
         .then(dataUrl => {
@@ -36,8 +38,12 @@ class ImageWidget extends WidgetType {
           img.src = dataUrl
         })
         .catch(err => {
-          console.error('[image embed] failed to load', this.filename, err)
-          img.title = `Could not load: ${this.filename}`
+          console.error('[image embed]', this.filename, err)
+          // Show error inline so it's visible without DevTools
+          const msg = document.createElement('span')
+          msg.style.cssText = 'color:#a03030;font-size:11px'
+          msg.textContent = ` ⚠ ${String(err?.message ?? err)}`
+          wrap.appendChild(msg)
         })
     }
 
