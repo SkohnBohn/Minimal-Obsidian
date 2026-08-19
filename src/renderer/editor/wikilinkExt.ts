@@ -119,24 +119,26 @@ function targetAtEvent(e: MouseEvent): string | null {
 
 function makeClickHandlers(onNavigate: (n: string) => void, onOpenNewTab: (n: string) => void) {
   return EditorView.domEventHandlers({
-    click(e, view) {
+    // Handle navigation on mousedown — decorations still reflect pre-click state here,
+    // so data-target is present on rendered links. Returning true prevents CM6 from
+    // moving the cursor, which would rebuild decorations and lose the data-target.
+    mousedown(e, _view) {
       const target = targetAtEvent(e)
-      if (!target) {
-        // Snap cursor past the hidden ]] if click landed inside it
-        const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
-        if (pos !== null) {
-          const wranges = view.state.field(wikilinkRangesField)
-          const link = wranges.find(r => pos >= r.to - 2 && pos < r.to)
-          if (link) {
-            view.dispatch({ selection: { anchor: link.to } })
-            return true
-          }
-        }
-        return false
-      }
+      if (!target) return false
       e.preventDefault()
       if (e.metaKey || e.ctrlKey) onOpenNewTab(target)
       else onNavigate(target)
+      return true
+    },
+    // click only handles the ]] snap: cursor already moved into the link by now,
+    // so we just check if it landed in the hidden ]] zone and snap past it.
+    click(e, view) {
+      const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
+      if (pos === null) return false
+      const wranges = view.state.field(wikilinkRangesField)
+      const link = wranges.find(r => pos >= r.to - 2 && pos < r.to)
+      if (!link) return false
+      view.dispatch({ selection: { anchor: link.to } })
       return true
     },
     contextmenu(e, _view) {
