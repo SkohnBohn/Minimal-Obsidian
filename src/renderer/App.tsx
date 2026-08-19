@@ -67,8 +67,10 @@ export default function App() {
     setEditingTitle(true)
     // focus happens via autoFocus on the input after render
     setTimeout(() => {
-      titleInputRef.current?.focus()
-      titleInputRef.current?.select()
+      const el = titleInputRef.current
+      if (!el) return
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
     }, 0)
   }, [activeTab])
 
