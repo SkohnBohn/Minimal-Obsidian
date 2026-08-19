@@ -64,7 +64,7 @@ export function removeFile(path: string): void {
   }
 }
 
-function buildSnippets(content: string, query: string, maxHits = 3): string[] {
+function buildSnippets(content: string, query: string, maxHits = 50): string[] {
   const lower = content.toLowerCase()
   const q = query.toLowerCase()
   const results: string[] = []
@@ -96,7 +96,7 @@ function buildSnippets(content: string, query: string, maxHits = 3): string[] {
   return results
 }
 
-export async function search(query: string, includeSources: boolean, limit = 20): Promise<SearchResult[]> {
+export async function search(query: string, includeSources: boolean, limit = 1000): Promise<SearchResult[]> {
   if (!query.trim()) return []
 
   const seen = new Set<string>()
@@ -104,7 +104,7 @@ export async function search(query: string, includeSources: boolean, limit = 20)
 
   if (/\w/.test(query)) {
     // @ts-ignore
-    const rawResults = await index.searchAsync(query, { limit, enrich: true })
+    const rawResults = await index.searchAsync(query, { limit: 1000, enrich: true })
     for (const field of rawResults) {
       for (const r of (field as any).result) {
         const doc: DocRecord = r.doc
