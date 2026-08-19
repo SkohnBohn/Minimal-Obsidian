@@ -39,6 +39,22 @@ export async function listFiles(): Promise<FileEntry[]> {
   return files.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+// Search vault root + one level of subdirectories (covers Obsidian attachment folders)
+export async function findAsset(filename: string): Promise<string | null> {
+  if (!vaultPath) return null
+  const rootPath = path.join(vaultPath, filename)
+  try { await fs.access(rootPath); return rootPath } catch {}
+  try {
+    const entries = await fs.readdir(vaultPath, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+      const subPath = path.join(vaultPath, entry.name, filename)
+      try { await fs.access(subPath); return subPath } catch {}
+    }
+  } catch {}
+  return null
+}
+
 export async function saveAsset(filename: string, data: Buffer): Promise<string> {
   if (!vaultPath) throw new Error('No vault open')
   const ext = path.extname(filename)

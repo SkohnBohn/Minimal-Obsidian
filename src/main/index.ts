@@ -11,6 +11,7 @@ import {
   createFile,
   renameFile,
   saveAsset,
+  findAsset,
   startWatcher
 } from './vaultManager'
 import { search } from './searchIndex'
@@ -100,11 +101,8 @@ function registerIPC(win: BrowserWindow): void {
   })
 
   ipcMain.handle('vault:readAsset', async (_e, filename: string) => {
-    const vaultDir = getVaultPath()
-    if (!vaultDir) throw new Error('No vault open')
-    const filePath = path.resolve(path.join(vaultDir, filename))
-    if (!filePath.startsWith(path.resolve(vaultDir) + path.sep))
-      throw new Error('Forbidden')
+    const filePath = await findAsset(filename)
+    if (!filePath) throw new Error(`Asset not found: ${filename}`)
     return fsAsync.readFile(filePath)
   })
 

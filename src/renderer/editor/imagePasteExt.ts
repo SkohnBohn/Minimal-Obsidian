@@ -1,13 +1,10 @@
 import { EditorView } from '@codemirror/view'
 
 const MIME_TO_EXT: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'image/bmp': 'bmp',
-  'image/svg+xml': 'svg',
+  'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif',
+  'image/webp': 'webp', 'image/bmp': 'bmp', 'image/svg+xml': 'svg',
 }
+const IMAGE_EXTS = /\.(png|jpe?g|gif|webp|bmp|svg)$/i
 
 function pastedFilename(mime: string): string {
   const ext = MIME_TO_EXT[mime] ?? 'png'
@@ -18,32 +15,50 @@ function pastedFilename(mime: string): string {
   return `Pasted image ${date} ${time}.${ext}`
 }
 
+async function saveAndInsert(view: EditorView, buf: ArrayBuffer, filename: string, insertPos: number) {
+  try {
+    const savedName = await window.api.vault.saveAsset(filename, new Uint8Array(buf))
+    view.dispatch({
+      changes: { from: insertPos, to: insertPos, insert: `![[${savedName}]]` },
+      selection: { anchor: insertPos + savedName.length + 5 }
+    })
+  } catch (err) {
+    console.error('Failed to save image:', err)
+  }
+}
+
 export const imagePasteExt = EditorView.domEventHandlers({
   paste(e, view) {
     const items = e.clipboardData?.items
     if (!items) return false
-
     for (const item of Array.from(items)) {
       if (!item.type.startsWith('image/')) continue
       e.preventDefault()
       const file = item.getAsFile()
       if (!file) return true
-
-      file.arrayBuffer().then(async buf => {
-        const filename = pastedFilename(item.type)
-        try {
-          const savedName = await window.api.vault.saveAsset(filename, new Uint8Array(buf))
-          const cursor = view.state.selection.main.from
-          view.dispatch({
-            changes: { from: cursor, to: cursor, insert: `![[${savedName}]]` },
-            selection: { anchor: cursor + savedName.length + 5 }
-          })
-        } catch (err) {
-          console.error('Failed to save pasted image:', err)
-        }
-      })
+      const cursor = view.state.selection.main.from
+      file.arrayBuffer().then(buf => saveAndInsert(view, buf, pastedFilename(item.type), cursor))
       return true
     }
     return false
+  },
+
+  dragover(e, _view) {
+    const hasFiles = Array.from(e.dataTransfer?.items ?? []).some(
+      i => i.kind === 'file' && IMAGE_EXTS.test(i.type === 'image/jpeg' ? '.jpg' : `.${MIME_TO_EXT[i.type] ?? 'bin'}`)
+    )
+    if (hasFiles) { e.preventDefault(); return true }
+    return false
+  },
+
+  drop(e, view) {
+    const files = Array.from(e.dataTransfer?.files ?? []).filter(f => IMAGE_EXTS.test(f.name))
+    if (!files.length) return false
+    e.preventDefault()
+    const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false) ?? view.state.selection.main.from
+    for (const file of files) {
+      file.arrayBuffer().then(buf => saveAndInsert(view, buf, file.name, pos))
+    }
+    return true
   }
 })
