@@ -44,8 +44,8 @@ function buildDecorations(state: EditorState): DecorationSet {
     const attrs = { 'data-target': target, style: 'cursor:pointer' }
 
     if (cursor >= from && cursor <= to) {
-      // Cursor inside — show raw markup so the user can edit it
-      ranges.push(Decoration.mark({ class: cls, attributes: attrs }).range(from, to))
+      // Cursor inside — show raw markup without data-target so clicks don't navigate
+      ranges.push(Decoration.mark({ class: cls }).range(from, to))
       continue
     }
 
@@ -116,9 +116,21 @@ function targetAtEvent(e: MouseEvent): string | null {
 
 function makeClickHandlers(onNavigate: (n: string) => void, onOpenNewTab: (n: string) => void) {
   return EditorView.domEventHandlers({
-    click(e, _view) {
+    click(e, view) {
       const target = targetAtEvent(e)
-      if (!target) return false
+      if (!target) {
+        // Snap cursor past the hidden ]] if click landed inside it
+        const pos = view.posAtCoords({ x: e.clientX, y: e.clientY }, false)
+        if (pos !== null) {
+          const wranges = view.state.field(wikilinkRangesField)
+          const link = wranges.find(r => pos >= r.to - 2 && pos < r.to)
+          if (link) {
+            view.dispatch({ selection: { anchor: link.to } })
+            return true
+          }
+        }
+        return false
+      }
       e.preventDefault()
       if (e.metaKey || e.ctrlKey) onOpenNewTab(target)
       else onNavigate(target)
