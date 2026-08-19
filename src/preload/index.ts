@@ -38,7 +38,7 @@ const api = {
       ipcRenderer.invoke('vault:rename', oldPath, newName),
     saveAsset: (filename: string, data: Uint8Array): Promise<string> =>
       ipcRenderer.invoke('vault:saveAsset', filename, data),
-    readAsset: (filename: string): Promise<Buffer> =>
+    readAsset: (filename: string): Promise<string> =>
       ipcRenderer.invoke('vault:readAsset', filename),
     links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
     onChange: (cb: (event: VaultChangeEvent) => void) => {

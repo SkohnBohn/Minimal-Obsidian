@@ -11,13 +11,8 @@ import { EditorState, Range } from '@codemirror/state'
 const IMAGE_EXTS = /\.(png|jpe?g|gif|bmp|svg|webp)$/i
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 
-const MIME: Record<string, string> = {
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
-  gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml'
-}
-
-// Module-level cache: filename → object URL (persists across widget rebuilds)
-const objectUrlCache = new Map<string, string>()
+// data URL cache — string serializes cleanly over IPC regardless of contextIsolation
+const dataUrlCache = new Map<string, string>()
 
 class ImageWidget extends WidgetType {
   constructor(readonly filename: string) { super() }
@@ -31,20 +26,19 @@ class ImageWidget extends WidgetType {
     img.className = 'cm-image-embed'
     img.alt = this.filename
 
-    const cached = objectUrlCache.get(this.filename)
+    const cached = dataUrlCache.get(this.filename)
     if (cached) {
       img.src = cached
     } else {
       window.api.vault.readAsset(this.filename)
-        .then(data => {
-          const ext = this.filename.split('.').pop()?.toLowerCase() ?? 'png'
-          const mime = MIME[ext] ?? 'image/png'
-          const blob = new Blob([data], { type: mime })
-          const url = URL.createObjectURL(blob)
-          objectUrlCache.set(this.filename, url)
-          img.src = url
+        .then(dataUrl => {
+          dataUrlCache.set(this.filename, dataUrl)
+          img.src = dataUrl
         })
-        .catch(() => { img.alt = `[not found: ${this.filename}]` })
+        .catch(err => {
+          console.error('[image embed] failed to load', this.filename, err)
+          img.title = `Could not load: ${this.filename}`
+        })
     }
 
     wrap.appendChild(img)

@@ -100,10 +100,18 @@ function registerIPC(win: BrowserWindow): void {
     return saveAsset(filename, Buffer.from(data))
   })
 
+  const ASSET_EXT_MIME: Record<string, string> = {
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml'
+  }
+
   ipcMain.handle('vault:readAsset', async (_e, filename: string) => {
     const filePath = await findAsset(filename)
     if (!filePath) throw new Error(`Asset not found: ${filename}`)
-    return fsAsync.readFile(filePath)
+    const data = await fsAsync.readFile(filePath)
+    const ext = path.extname(filename).slice(1).toLowerCase()
+    const mime = ASSET_EXT_MIME[ext] ?? 'image/png'
+    return `data:${mime};base64,${data.toString('base64')}`
   })
 
   ipcMain.handle('vault:links', async () => {
