@@ -584,10 +584,8 @@ input {
   margin-right: 2px;
 }
 
-/* Footnote definition line: hanging indent + small top gap */
+/* Footnote definition line: small top gap between entries */
 .cm-footnote-def-line {
-  padding-left: 1.4em;
-  text-indent: -1.4em;
   padding-top: 3px;
 }
 
