@@ -15,9 +15,9 @@ const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 const dataUrlCache = new Map<string, string>()
 
 class ImageWidget extends WidgetType {
-  constructor(readonly filename: string) { super() }
+  constructor(readonly filename: string, readonly width?: number) { super() }
 
-  eq(other: ImageWidget) { return other.filename === this.filename }
+  eq(other: ImageWidget) { return other.filename === this.filename && other.width === this.width }
 
   toDOM() {
     const wrap = document.createElement('span')
@@ -25,6 +25,7 @@ class ImageWidget extends WidgetType {
     const img = document.createElement('img')
     img.className = 'cm-image-embed'
     img.alt = this.filename
+    if (this.width) img.style.width = `${this.width}px`
 
     const cached = dataUrlCache.get(this.filename)
     if (cached) {
@@ -39,7 +40,6 @@ class ImageWidget extends WidgetType {
         })
         .catch(err => {
           console.error('[image embed]', this.filename, err)
-          // Show error inline so it's visible without DevTools
           const msg = document.createElement('span')
           msg.style.cssText = 'color:#a03030;font-size:11px'
           msg.textContent = ` ⚠ ${String(err?.message ?? err)}`
@@ -61,11 +61,13 @@ function buildDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(doc)) !== null) {
-    const filename = m[1].trim()
+    const parts = m[1].trim().split('|')
+    const filename = parts[0].trim()
     if (!IMAGE_EXTS.test(filename)) continue
+    const width = parts[1] ? parseInt(parts[1].trim(), 10) || undefined : undefined
     const from = m.index, to = m.index + m[0].length
     if (cursor >= from && cursor <= to) continue
-    ranges.push(Decoration.replace({ widget: new ImageWidget(filename) }).range(from, to))
+    ranges.push(Decoration.replace({ widget: new ImageWidget(filename, width) }).range(from, to))
   }
   return Decoration.set(ranges, true)
 }
