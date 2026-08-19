@@ -10,6 +10,7 @@ import {
   writeFile,
   createFile,
   renameFile,
+  saveAsset,
   startWatcher
 } from './vaultManager'
 import { search } from './searchIndex'
@@ -92,6 +93,10 @@ function registerIPC(win: BrowserWindow): void {
 
   ipcMain.handle('vault:rename', async (_e, oldPath: string, newName: string) => {
     return renameFile(oldPath, newName)
+  })
+
+  ipcMain.handle('vault:saveAsset', async (_e, filename: string, data: Uint8Array) => {
+    return saveAsset(filename, Buffer.from(data))
   })
 
   ipcMain.handle('vault:links', async () => {

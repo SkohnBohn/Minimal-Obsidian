@@ -39,6 +39,21 @@ export async function listFiles(): Promise<FileEntry[]> {
   return files.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+export async function saveAsset(filename: string, data: Buffer): Promise<string> {
+  if (!vaultPath) throw new Error('No vault open')
+  const ext = path.extname(filename)
+  const base = path.basename(filename, ext)
+  let finalName = filename
+  let filePath = path.join(vaultPath, finalName)
+  let counter = 1
+  while (true) {
+    try { await fs.access(filePath); finalName = `${base} ${counter++}${ext}`; filePath = path.join(vaultPath, finalName) }
+    catch { break }
+  }
+  await fs.writeFile(filePath, data)
+  return finalName
+}
+
 export async function readFile(filePath: string): Promise<string> {
   return fs.readFile(filePath, 'utf-8')
 }

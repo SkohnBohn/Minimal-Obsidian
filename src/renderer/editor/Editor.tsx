@@ -7,6 +7,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
 import { markdownDecorationsPlugin } from './markdownDecorations'
 import { imageEmbedExt } from './imageEmbedExt'
+import { imagePasteExt } from './imagePasteExt'
 import { insertFootnoteRef, addFootnoteDef, footnoteEnterCommand, footnoteTooltipExt } from './footnoteExt'
 import type { Tab } from '../tabs/useTabs'
 
@@ -91,6 +92,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       imageEmbedExt,
+      imagePasteExt,
       markdownDecorationsPlugin,
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
