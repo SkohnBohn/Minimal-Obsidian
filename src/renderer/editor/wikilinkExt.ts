@@ -105,27 +105,27 @@ const wikilinkRangesField = StateField.define<WikiRange[]>({
   }
 })
 
-function targetAtEvent(e: MouseEvent, view: EditorView): string | null {
-  const pos = view.posAtCoords({ x: e.clientX, y: e.clientY })
-  if (pos == null) return null
-  const range = view.state.field(wikilinkRangesField).find(r => pos >= r.from && pos <= r.to)
-  return range?.target ?? null
+function targetAtEvent(e: MouseEvent): string | null {
+  const el = document.elementFromPoint(e.clientX, e.clientY)
+  if (!el) return null
+  const span = el.closest('[data-target]') as HTMLElement | null
+  return span?.dataset.target ?? null
 }
 
 // ── Click handlers ─────────────────────────────────────────────────────────
 
 function makeClickHandlers(onNavigate: (n: string) => void, onOpenNewTab: (n: string) => void) {
   return EditorView.domEventHandlers({
-    click(e, view) {
-      const target = targetAtEvent(e, view)
+    click(e, _view) {
+      const target = targetAtEvent(e)
       if (!target) return false
       e.preventDefault()
       if (e.metaKey || e.ctrlKey) onOpenNewTab(target)
       else onNavigate(target)
       return true
     },
-    contextmenu(e, view) {
-      const target = targetAtEvent(e, view)
+    contextmenu(e, _view) {
+      const target = targetAtEvent(e)
       if (!target) return false
       e.preventDefault()
       onOpenNewTab(target)
