@@ -300,7 +300,10 @@ export default function App() {
                           onChange={e => setTitleInput(e.target.value)}
                           onBlur={commitRename}
                           onKeyDown={e => {
-                            if (e.key === 'Enter') commitRename()
+                            if (e.key === 'Enter') {
+                              commitRename()
+                              setTimeout(() => activeEditorView.current?.focus(), 0)
+                            }
                             if (e.key === 'Escape') { clearNaming(activeTab.id); setEditingTitle(false) }
                           }}
                           autoFocus
