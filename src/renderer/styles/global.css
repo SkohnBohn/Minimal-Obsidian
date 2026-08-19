@@ -584,10 +584,17 @@ input {
   margin-right: 2px;
 }
 
-/* Footnote definition body text */
+/* Footnote definition line: hanging indent + small top gap */
+.cm-footnote-def-line {
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+  padding-top: 3px;
+}
+
+/* Footnote definition body text — color instead of opacity so wikilinks keep their own color */
 .cm-footnote-def-content {
   font-size: 0.88em;
-  opacity: 0.55;
+  color: var(--stone);
 }
 
 /* Settings panel */

@@ -81,10 +81,12 @@ function buildDecorations(state: EditorState): DecorationSet {
     const fd = FOOTNOTE_DEF_RE.exec(line.text)
     if (fd) {
       if (onCursorLine) continue
+      // mark the whole line for hanging indent + spacing
+      ranges.push(Decoration.line({ class: 'cm-footnote-def-line' }).range(line.from))
       // replace [^n]: with a superscript label widget
       const labelEnd = line.from + fd[0].length - fd[2].length
       ranges.push(Decoration.replace({ widget: new FootnoteDefWidget(fd[1]) }).range(line.from, labelEnd))
-      // fade the content that follows
+      // mute the content that follows
       if (labelEnd < line.to)
         ranges.push(Decoration.mark({ class: 'cm-footnote-def-content' }).range(labelEnd, line.to))
     }
