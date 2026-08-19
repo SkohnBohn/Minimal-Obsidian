@@ -11,6 +11,14 @@ import { EditorState, Range } from '@codemirror/state'
 const IMAGE_EXTS = /\.(png|jpe?g|gif|bmp|svg|webp)$/i
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 
+const MIME: Record<string, string> = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+  gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml'
+}
+
+// Module-level cache: filename → object URL (persists across widget rebuilds)
+const objectUrlCache = new Map<string, string>()
+
 class ImageWidget extends WidgetType {
   constructor(readonly filename: string) { super() }
 
@@ -20,9 +28,25 @@ class ImageWidget extends WidgetType {
     const wrap = document.createElement('span')
     wrap.className = 'cm-image-wrap'
     const img = document.createElement('img')
-    img.src = `vault-asset://img/${encodeURIComponent(this.filename)}`
-    img.alt = this.filename
     img.className = 'cm-image-embed'
+    img.alt = this.filename
+
+    const cached = objectUrlCache.get(this.filename)
+    if (cached) {
+      img.src = cached
+    } else {
+      window.api.vault.readAsset(this.filename)
+        .then(data => {
+          const ext = this.filename.split('.').pop()?.toLowerCase() ?? 'png'
+          const mime = MIME[ext] ?? 'image/png'
+          const blob = new Blob([data], { type: mime })
+          const url = URL.createObjectURL(blob)
+          objectUrlCache.set(this.filename, url)
+          img.src = url
+        })
+        .catch(() => { img.alt = `[not found: ${this.filename}]` })
+    }
+
     wrap.appendChild(img)
     return wrap
   }
@@ -40,7 +64,7 @@ function buildDecorations(state: EditorState): DecorationSet {
     const filename = m[1].trim()
     if (!IMAGE_EXTS.test(filename)) continue
     const from = m.index, to = m.index + m[0].length
-    if (cursor >= from && cursor <= to) continue  // show raw markup while editing
+    if (cursor >= from && cursor <= to) continue
     ranges.push(Decoration.replace({ widget: new ImageWidget(filename) }).range(from, to))
   }
   return Decoration.set(ranges, true)
