@@ -439,6 +439,17 @@ input {
   text-decoration-color: var(--stone);
 }
 
+.cm-image-wrap {
+  display: block;
+  margin: 6px 0;
+}
+
+.cm-image-embed {
+  display: block;
+  max-width: 100%;
+  border-radius: 2px;
+}
+
 /* Live preview heading styles */
 .cm-h1 { font-size: 1.5em; font-weight: 700; }
 .cm-h2 { font-size: 1.25em; font-weight: 700; }

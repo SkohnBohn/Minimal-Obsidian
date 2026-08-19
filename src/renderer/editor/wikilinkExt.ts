@@ -38,6 +38,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   const re = new RegExp(WIKILINK_RE.source, 'g')
   let m: RegExpExecArray | null
   while ((m = re.exec(doc)) !== null) {
+    if (m.index > 0 && doc[m.index - 1] === '!') continue  // image embed, handled separately
     const from = m.index, to = m.index + m[0].length
     const target = m[1].trim()
     const cls = names.has(target) ? 'cm-wikilink-existing' : 'cm-wikilink-dead'
@@ -93,8 +94,10 @@ function buildWikiRanges(state: EditorState): WikiRange[] {
   const re = new RegExp(WIKILINK_RE.source, 'g')
   const out: WikiRange[] = []
   let m: RegExpExecArray | null
-  while ((m = re.exec(doc)) !== null)
+  while ((m = re.exec(doc)) !== null) {
+    if (m.index > 0 && doc[m.index - 1] === '!') continue  // image embed
     out.push({ from: m.index, to: m.index + m[0].length, target: m[1].trim() })
+  }
   return out
 }
 

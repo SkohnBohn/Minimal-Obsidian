@@ -6,6 +6,7 @@ import { search } from '@codemirror/search'
 import { markdown } from '@codemirror/lang-markdown'
 import { wikilinkExtension, setNoteNames } from './wikilinkExt'
 import { markdownDecorationsPlugin } from './markdownDecorations'
+import { imageEmbedExt } from './imageEmbedExt'
 import { insertFootnoteRef, addFootnoteDef, footnoteEnterCommand, footnoteTooltipExt } from './footnoteExt'
 import type { Tab } from '../tabs/useTabs'
 
@@ -89,6 +90,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
         '.cm-tooltip': { background: 'var(--bg-inset) !important', border: '1px solid var(--ash) !important', borderRadius: '0 !important', boxShadow: 'none !important' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
+      imageEmbedExt,
       markdownDecorationsPlugin,
       EditorView.updateListener.of(update => {
         if (update.docChanged) {

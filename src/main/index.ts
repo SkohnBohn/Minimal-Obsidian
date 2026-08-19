@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol, net } from 'electron'
 import path from 'path'
+import { pathToFileURL } from 'url'
 import Store from 'electron-store'
 import {
   setVaultPath,
@@ -16,6 +17,11 @@ import { buildLinkGraph } from './linkParser'
 import { promises as fs } from 'fs'
 
 const store = new Store()
+
+// Must be called before app is ready
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'vault-asset', privileges: { secure: true, standard: true, supportFetchAPI: true } }
+])
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -114,6 +120,22 @@ function registerIPC(win: BrowserWindow): void {
 }
 
 app.whenReady().then(() => {
+  // Serve vault files as vault-asset://img/<filename>
+  protocol.handle('vault-asset', async (request) => {
+    try {
+      const url = new URL(request.url)
+      const filename = decodeURIComponent(url.pathname.slice(1))
+      const vaultDir = getVaultPath()
+      if (!vaultDir || !filename) return new Response('Not found', { status: 404 })
+      const filePath = path.join(vaultDir, filename)
+      if (!filePath.startsWith(vaultDir + path.sep) && filePath !== vaultDir)
+        return new Response('Forbidden', { status: 403 })
+      return net.fetch(pathToFileURL(filePath).href)
+    } catch {
+      return new Response('Error', { status: 500 })
+    }
+  })
+
   const win = createWindow()
 
   const savedVault = store.get('vaultPath') as string | undefined
