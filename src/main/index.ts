@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol, globalShortcut } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, protocol, globalShortcut, Menu } from 'electron'
 import path from 'path'
 import { promises as fsAsync } from 'fs'
 import Store from 'electron-store'
@@ -188,13 +188,40 @@ app.whenReady().then(() => {
   win.on('enter-full-screen', () => win.webContents.send('app:fullscreen', true))
   win.on('leave-full-screen', () => win.webContents.send('app:fullscreen', false))
 
-  // Intercept Ctrl+Tab / Ctrl+Shift+Tab before macOS swallows them
-  win.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown' && input.key === 'Tab' && input.control && !input.meta && !input.alt) {
-      event.preventDefault()
-      win.webContents.send('app:switch-tab', input.shift ? 'prev' : 'next')
+  // Native menu accelerators for Ctrl+Tab — more reliable than before-input-event
+  // because macOS processes NSMenuItem key equivalents before web content sees the event.
+  const menu = Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Next Tab',
+          accelerator: 'Ctrl+Tab',
+          click: () => win.webContents.send('app:switch-tab', 'next')
+        },
+        {
+          label: 'Previous Tab',
+          accelerator: 'Ctrl+Shift+Tab',
+          click: () => win.webContents.send('app:switch-tab', 'prev')
+        }
+      ]
     }
-  })
+  ])
+  Menu.setApplicationMenu(menu)
 
   // Give the renderer a chance to flush unsaved writes before quitting.
   let readyToQuit = false
