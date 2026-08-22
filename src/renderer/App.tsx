@@ -43,7 +43,7 @@ export default function App() {
 
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
-    openTab, openTabByName, navigateInTab, goBack, goForward,
+    openTab, openTabForceNew, openTabByName, navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved
@@ -180,6 +180,18 @@ export default function App() {
 
   const handleOpenNote = useCallback((name: string) => openTabByName(name), [openTabByName])
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
+
+  const openNoteNewTab = useCallback(async (name: string) => {
+    const files = await window.api.vault.list()
+    const nameLower = name.toLowerCase()
+    const file = files.find(f => f.name.toLowerCase() === nameLower)
+    if (file) {
+      openTabForceNew(file.path, file.name)
+    } else {
+      const path = await window.api.vault.create(name)
+      openTabForceNew(path, name)
+    }
+  }, [openTabForceNew])
 
   const commitRename = useCallback(async () => {
     if (!activeTab || !editingTitle) return
@@ -371,8 +383,7 @@ export default function App() {
             { name: 'Settings', type: 'settings', open: () => { openSettingsTab(); setShowSwitcher(false) } },
             { name: 'Shortcuts', type: 'hotkeys', open: () => { openHotkeysTab(); setShowSwitcher(false) } },
           ]}
-          onActivateTab={id => { setActiveTabId(id); setShowSwitcher(false) }}
-          onOpen={name => { handleNavigateNote(name); setShowSwitcher(false) }}
+          onOpen={name => { openNoteNewTab(name); setShowSwitcher(false) }}
           onClose={() => setShowSwitcher(false)}
         />
       )}

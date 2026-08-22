@@ -124,6 +124,13 @@ export function useTabs() {
     })
   }, [activateTab])
 
+  const openTabForceNew = useCallback(async (path: string, name: string) => {
+    const content = await window.api.vault.read(path)
+    const newTab = makeTab(path, name, content)
+    setTabs(prev => [...prev, newTab])
+    activateTab(newTab.id)
+  }, [activateTab])
+
   const openTabByName = useCallback(async (name: string) => {
     const nameLower = name.toLowerCase()
     const existing = tabsRef.current.find(t => t.name.toLowerCase() === nameLower)
@@ -326,7 +333,7 @@ export function useTabs() {
 
   return {
     tabs, activeTab, activeTabId,
-    setActiveTabId: activateTab, openTab, openTabByName,
+    setActiveTabId: activateTab, openTab, openTabForceNew, openTabByName,
     navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
