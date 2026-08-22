@@ -12,7 +12,7 @@ const GROUPS: [string, [string, string][]][] = [
     ['⌘⇧F', 'search notes'],
   ]],
   ['navigation', [
-    ['⌃⇥ / ⌃⇧⇥', 'next / prev tab'],
+    ['⌘] / ⌘[', 'next / prev tab'],
     ['⌘⌥←', 'back'],
     ['⌘⌥→', 'forward'],
     ['⌘⇧G', 'graph view'],
