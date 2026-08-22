@@ -19,6 +19,7 @@ export interface Tab {
   contentVersion: number   // incremented on in-tab navigation to force editor remount
   navHistory: NavEntry[]   // visited notes in this tab
   navIndex: number         // current position in navHistory
+  cameFrom?: string        // tab id to return to when goBack is called at navIndex 0
   isNaming?: boolean       // true for brand-new tabs until title is committed
   lastUsed: number         // timestamp of last activation, for recency sorting
 }
@@ -155,10 +156,14 @@ export function useTabs() {
     } else {
       targetPath = await window.api.vault.create(name); targetName = name
     }
-    // If another tab already shows this file, just switch to it — don't duplicate.
-    // Two tabs pointing at the same path would race on auto-saves.
+    // If another tab already shows this file, switch to it and record where we came from
+    // so goBack can return to this tab.
     const otherTab = tabsRef.current.find(t => t.id !== tabId && t.path === targetPath)
-    if (otherTab) { activateTab(otherTab.id); return }
+    if (otherTab) {
+      setTabs(prev => prev.map(t => t.id === otherTab.id ? { ...t, cameFrom: tabId } : t))
+      activateTab(otherTab.id)
+      return
+    }
 
     const content = await window.api.vault.read(targetPath)
     setTabs(prev => prev.map(t => {
@@ -172,14 +177,23 @@ export function useTabs() {
         initialContent: content, isDirty: false,
         cmState: null, scrollPos: 0,
         contentVersion: t.contentVersion + 1,
-        navHistory: newHistory, navIndex: newHistory.length - 1
+        navHistory: newHistory, navIndex: newHistory.length - 1,
+        cameFrom: undefined
       }
     }))
   }, [])
 
   const goBack = useCallback(async (tabId: string) => {
     const tab = tabsRef.current.find(t => t.id === tabId)
-    if (!tab || tab.navIndex <= 0) return
+    if (!tab) return
+    if (tab.navIndex <= 0) {
+      if (tab.cameFrom) {
+        const fromId = tab.cameFrom
+        setTabs(prev => prev.map(t => t.id === tabId ? { ...t, cameFrom: undefined } : t))
+        activateTab(fromId)
+      }
+      return
+    }
     const newIndex = tab.navIndex - 1
     const entry = tab.navHistory[newIndex]
     const content = await window.api.vault.read(entry.path)
