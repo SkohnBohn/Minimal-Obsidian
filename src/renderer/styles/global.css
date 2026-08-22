@@ -615,20 +615,20 @@ input {
   color: var(--stone);
 }
 
-/* Settings panel — fixed left anchor so toggling the rail doesn't shift content */
+/* Settings panel — centered in the full window, not just .main */
 .settings-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   padding-top: 48px;
-  padding-left: 80px;
+  /* padding-right offsets the rail so the visual center stays at window midpoint */
+  padding-right: var(--rail-w);
   gap: 16px;
 }
-/* When rail is hidden the main area is wider by --rail-w; add that back so
-   the settings content stays at the same absolute screen position */
+/* Rail hidden: .main spans full width, no offset needed */
 .app-row[data-hide-rail] .settings-panel {
-  padding-left: calc(80px + var(--rail-w));
+  padding-right: 0;
 }
 
 .settings-section {
