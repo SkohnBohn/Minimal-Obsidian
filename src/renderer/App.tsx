@@ -228,13 +228,17 @@ export default function App() {
         e.preventDefault(); if (activeTabId) goBack(activeTabId)
       } else if (meta && e.altKey && e.key === 'ArrowRight') {
         e.preventDefault(); if (activeTabId) goForward(activeTabId)
+      } else if (meta && !e.shiftKey && !e.altKey && e.key === ',') {
+        e.preventDefault(); openSettingsTab()
+      } else if (meta && e.shiftKey && !e.altKey && e.key === 'G') {
+        e.preventDefault(); openGraphTab()
       } else if (e.key === 'Escape') {
         setShowSwitcher(false); setShowSidebar(false); setShowFind(false)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward])
+  }, [activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward, openSettingsTab, openGraphTab])
 
   return (
     <div className="app">
@@ -261,7 +265,6 @@ export default function App() {
           <button
             className="rail-btn"
             data-tip="settings"
-            style={{ marginTop: 'auto' }}
             onClick={openSettingsTab}
           >
             ◎
