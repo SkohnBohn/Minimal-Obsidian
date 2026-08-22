@@ -40,6 +40,8 @@ const api = {
       ipcRenderer.invoke('vault:saveAsset', filename, data),
     readAsset: (filename: string): Promise<string> =>
       ipcRenderer.invoke('vault:readAsset', filename),
+    getSaved: (): Promise<string[]> => ipcRenderer.invoke('vault:getSaved'),
+    setSaved: (paths: string[]): Promise<void> => ipcRenderer.invoke('vault:setSaved', paths),
     links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
     onChange: (cb: (event: VaultChangeEvent) => void) => {
       const handler = (_: unknown, event: VaultChangeEvent) => cb(event)

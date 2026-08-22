@@ -619,6 +619,62 @@ input {
   word-break: break-all;
 }
 
+.settings-vault-list {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-vault-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-vault-item-name {
+  flex: 1;
+  text-align: left;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--stone);
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 80ms, background 80ms;
+}
+
+.settings-vault-item-name:hover {
+  color: var(--ink);
+  background: var(--bg-inset);
+}
+
+.settings-vault-item.active .settings-vault-item-name {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.settings-vault-item-remove {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ash);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  flex-shrink: 0;
+  transition: color 80ms;
+}
+
+.settings-vault-item-remove:hover {
+  color: var(--stone);
+}
+
 .settings-vault-input {
   width: 220px;
   font-size: 12px;

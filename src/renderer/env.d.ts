@@ -16,6 +16,8 @@ declare global {
         rename(oldPath: string, newName: string): Promise<string>
         saveAsset(filename: string, data: Uint8Array): Promise<string>
         readAsset(filename: string): Promise<string>
+        getSaved(): Promise<string[]>
+        setSaved(paths: string[]): Promise<void>
         links(): Promise<LinkGraph>
         onChange(cb: (event: VaultChangeEvent) => void): () => void
       }

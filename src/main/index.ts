@@ -67,6 +67,9 @@ function registerIPC(win: BrowserWindow): void {
       if (!stat.isDirectory()) return { error: 'Not a directory' }
       setVaultPath(vaultDir)
       store.set('vaultPath', vaultDir)
+      // Auto-save to saved vaults list (deduplicated)
+      const saved = (store.get('savedVaults') ?? []) as string[]
+      if (!saved.includes(vaultDir)) store.set('savedVaults', [...saved, vaultDir])
       startWatcher(win)
       return { files: await listFiles() }
     } catch {
@@ -75,6 +78,10 @@ function registerIPC(win: BrowserWindow): void {
   })
 
   ipcMain.handle('vault:getPath', () => getVaultPath())
+
+  ipcMain.handle('vault:getSaved', () => (store.get('savedVaults') ?? []) as string[])
+
+  ipcMain.handle('vault:setSaved', (_e, paths: string[]) => { store.set('savedVaults', paths) })
 
   ipcMain.handle('vault:list', async () => {
     return listFiles()

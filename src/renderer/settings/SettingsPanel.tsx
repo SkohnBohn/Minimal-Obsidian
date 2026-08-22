@@ -14,10 +14,15 @@ function applyTheme(t: Theme) {
   window.api.settings.set('theme', t)
 }
 
+function basename(p: string) {
+  return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
+}
+
 export default function SettingsPanel({ onVaultSet }: Props) {
   const [includeSources, setIncludeSources] = useState(true)
   const [theme, setTheme] = useState<Theme>('solace')
   const [currentPath, setCurrentPath] = useState<string | null>(null)
+  const [savedVaults, setSavedVaults] = useState<string[]>([])
   const [pathInput, setPathInput] = useState('')
   const [pathError, setPathError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -30,6 +35,7 @@ export default function SettingsPanel({ onVaultSet }: Props) {
       setTheme((v as Theme | undefined) ?? 'solace')
     })
     window.api.vault.getPath().then(p => setCurrentPath(p))
+    window.api.vault.getSaved().then(setSavedVaults)
   }, [])
 
   function toggle() {
@@ -43,13 +49,34 @@ export default function SettingsPanel({ onVaultSet }: Props) {
     applyTheme(t)
   }
 
+  async function switchVault(p: string) {
+    const result = await window.api.vault.setPath(p)
+    if (result.error) { setPathError(result.error); return }
+    if (result.files) {
+      setCurrentPath(p)
+      window.api.vault.getSaved().then(setSavedVaults)
+      onVaultSet(result.files)
+    }
+  }
+
+  async function removeVault(p: string) {
+    const next = savedVaults.filter(v => v !== p)
+    setSavedVaults(next)
+    await window.api.vault.setSaved(next)
+  }
+
   async function applyVault() {
     const p = pathInput.trim().replace(/\\(.)/g, '$1')
     if (!p) return
     setPathError(null)
     const result = await window.api.vault.setPath(p)
     if (result.error) { setPathError(result.error); return }
-    if (result.files) { setCurrentPath(p); setPathInput(''); onVaultSet(result.files) }
+    if (result.files) {
+      setCurrentPath(p)
+      setPathInput('')
+      window.api.vault.getSaved().then(setSavedVaults)
+      onVaultSet(result.files)
+    }
   }
 
   return (
@@ -74,9 +101,33 @@ export default function SettingsPanel({ onVaultSet }: Props) {
       </label>
 
       <div className="settings-section">vault</div>
-      {currentPath && (
-        <div className="settings-vault-path">{currentPath}</div>
+
+      {savedVaults.length > 0 && (
+        <div className="settings-vault-list">
+          {savedVaults.map(p => (
+            <div
+              key={p}
+              className={`settings-vault-item${p === currentPath ? ' active' : ''}`}
+            >
+              <button
+                className="settings-vault-item-name"
+                title={p}
+                onClick={() => switchVault(p)}
+              >
+                {basename(p)}
+              </button>
+              <button
+                className="settings-vault-item-remove"
+                onClick={() => removeVault(p)}
+                aria-label="remove"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
       )}
+
       <input
         ref={inputRef}
         className="settings-vault-input"
