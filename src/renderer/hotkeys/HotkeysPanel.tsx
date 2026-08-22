@@ -15,6 +15,8 @@ const GROUPS: [string, [string, string][]][] = [
     ['⌃⇥ / ⌃⇧⇥', 'next / prev tab'],
     ['⌘⌥←', 'back'],
     ['⌘⌥→', 'forward'],
+    ['⌘⇧G', 'graph view'],
+    ['⌘,', 'settings'],
   ]],
   ['citations', [
     ['⌘⇧O', 'insert source ref'],
