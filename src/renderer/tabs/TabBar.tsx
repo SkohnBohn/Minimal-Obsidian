@@ -9,9 +9,10 @@ interface TabBarProps {
   onReorder: (fromIdx: number, toIdx: number) => void
   keyboardOnly?: boolean
   onSettings?: () => void
+  settingsActive?: boolean
 }
 
-export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReorder, keyboardOnly, onSettings }: TabBarProps) {
+export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReorder, keyboardOnly, onSettings, settingsActive }: TabBarProps) {
   const [dragSrc, setDragSrc] = useState<number | null>(null)
   const [insertAt, setInsertAt] = useState<number | null>(null)
 
@@ -44,7 +45,10 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReord
   return (
     <div className="tabbar" onDragLeave={() => setInsertAt(null)}>
       {onSettings && (
-        <button className="tabbar-settings-btn" onClick={onSettings}>◎</button>
+        <button
+          className={`tabbar-settings-btn${settingsActive ? ' active' : ''}`}
+          onClick={onSettings}
+        >◎</button>
       )}
       {tabs.map((tab, i) => (
         <div

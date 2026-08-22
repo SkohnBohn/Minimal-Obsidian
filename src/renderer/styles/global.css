@@ -226,6 +226,7 @@ input {
   transition: color 80ms;
 }
 .tabbar-settings-btn:hover { color: var(--ink); }
+.tabbar-settings-btn.active { color: var(--ink); background: var(--bg); }
 
 .tab {
   display: flex;

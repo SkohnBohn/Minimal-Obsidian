@@ -39,6 +39,7 @@ export default function App() {
   const [vaultReady, setVaultReady] = useState(false)
   const [keyboardOnlyTabs, setKeyboardOnlyTabs] = useState(false)
   const [hideRail, setHideRail] = useState(false)
+  const [inlineSettings, setInlineSettings] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
 
@@ -314,15 +315,24 @@ export default function App() {
           <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
-            onActivate={setActiveTabId}
+            onActivate={id => { setActiveTabId(id); setInlineSettings(false) }}
             onClose={handleCloseTab}
             onReorder={reorderTab}
             keyboardOnly={keyboardOnlyTabs}
-            onSettings={hideRail ? openSettingsTab : undefined}
+            onSettings={hideRail ? () => setInlineSettings(v => !v) : undefined}
+            settingsActive={hideRail && inlineSettings}
           />
 
           <div className="editor-pane">
-            {activeTab?.type === 'graph' ? (
+            {inlineSettings ? (
+              <SettingsPanel
+                onVaultSet={files => { setFiles(files); setVaultReady(true) }}
+                keyboardOnlyTabs={keyboardOnlyTabs}
+                onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
+                hideRail={hideRail}
+                onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
+              />
+            ) : activeTab?.type === 'graph' ? (
               <GraphPanel
                 activeNoteName={null}
                 onOpenNote={handleOpenNote}
