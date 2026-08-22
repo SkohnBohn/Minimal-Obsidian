@@ -34,8 +34,17 @@ export default function SettingsPanel({ onVaultSet }: Props) {
     window.api.settings.get('theme').then(v => {
       setTheme((v as Theme | undefined) ?? 'solace')
     })
-    window.api.vault.getPath().then(p => setCurrentPath(p))
-    window.api.vault.getSaved().then(setSavedVaults)
+    Promise.all([window.api.vault.getPath(), window.api.vault.getSaved()]).then(([cur, saved]) => {
+      setCurrentPath(cur)
+      // Ensure the active vault is always in the list
+      if (cur && !saved.includes(cur)) {
+        const next = [cur, ...saved]
+        setSavedVaults(next)
+        window.api.vault.setSaved(next)
+      } else {
+        setSavedVaults(saved)
+      }
+    })
   }, [])
 
   function toggle() {
@@ -66,7 +75,7 @@ export default function SettingsPanel({ onVaultSet }: Props) {
   }
 
   async function applyVault() {
-    const p = pathInput.trim().replace(/\\(.)/g, '$1')
+    const p = pathInput.trim().replace(/^['"]|['"]$/g, '').replace(/\\(.)/g, '$1')
     if (!p) return
     setPathError(null)
     const result = await window.api.vault.setPath(p)
