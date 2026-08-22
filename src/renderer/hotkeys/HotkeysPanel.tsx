@@ -12,7 +12,8 @@ const GROUPS: [string, [string, string][]][] = [
     ['CMD + SHIFT + F', 'search notes'],
   ]],
   ['navigation', [
-    ['CTRL + TAB / CTRL + SHIFT + TAB', 'next / prev tab'],
+    ['CTRL + TAB', 'next tab'],
+    ['CTRL + SHIFT + TAB', 'prev tab'],
     ['CMD + OPT + LEFT', 'back'],
     ['CMD + OPT + RIGHT', 'forward'],
     ['CMD + SHIFT + G', 'graph view'],
@@ -29,7 +30,7 @@ export default function HotkeysPanel() {
     <div className="hotkeys-panel">
       {GROUPS.map(([label, rows]) => (
         <div key={label} className="hotkeys-group">
-          <div className="settings-section" style={{ width: 320 }}>{label}</div>
+          <div className="settings-section" style={{ width: 380 }}>{label}</div>
           {rows.map(([key, desc]) => (
             <div key={key} className="hotkeys-row">
               <span className="hotkeys-key">{key}</span>

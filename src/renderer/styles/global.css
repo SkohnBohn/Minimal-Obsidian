@@ -797,24 +797,23 @@ input {
 }
 
 .hotkeys-row {
-  display: flex;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
-  width: 320px;
+  width: 380px;
 }
 
 .hotkeys-key {
   font-family: var(--font);
   font-size: 10px;
-  color: var(--stone);
-  min-width: 170px;
-  text-align: right;
+  color: var(--ink);
+  text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.07em;
 }
 
 .hotkeys-desc {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--stone);
   text-transform: uppercase;
   letter-spacing: 0.06em;
