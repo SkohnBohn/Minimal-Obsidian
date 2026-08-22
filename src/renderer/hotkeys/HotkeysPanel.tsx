@@ -2,25 +2,25 @@ import React from 'react'
 
 const GROUPS: [string, [string, string][]][] = [
   ['general', [
-    ['⌘O', 'open file'],
-    ['⌘N', 'new note'],
-    ['⌘W', 'close tab'],
-    ['Esc', 'close search / switcher'],
+    ['CMD + O', 'open file'],
+    ['CMD + N', 'new note'],
+    ['CMD + W', 'close tab'],
+    ['ESC', 'close search / switcher'],
   ]],
   ['search', [
-    ['⌘F', 'find in note'],
-    ['⌘⇧F', 'search notes'],
+    ['CMD + F', 'find in note'],
+    ['CMD + SHIFT + F', 'search notes'],
   ]],
   ['navigation', [
-    ['⌃⇥ / ⌃⇧⇥', 'next / prev tab'],
-    ['⌘⌥←', 'back'],
-    ['⌘⌥→', 'forward'],
-    ['⌘⇧G', 'graph view'],
-    ['⌘,', 'settings'],
+    ['CTRL + TAB / CTRL + SHIFT + TAB', 'next / prev tab'],
+    ['CMD + OPT + LEFT', 'back'],
+    ['CMD + OPT + RIGHT', 'forward'],
+    ['CMD + SHIFT + G', 'graph view'],
+    ['CMD + ,', 'settings'],
   ]],
   ['citations', [
-    ['⌘⇧O', 'insert source ref'],
-    ['⌘⇧P', 'add source entry'],
+    ['CMD + SHIFT + O', 'insert source ref'],
+    ['CMD + SHIFT + P', 'add source entry'],
   ]],
 ]
 
@@ -29,7 +29,7 @@ export default function HotkeysPanel() {
     <div className="hotkeys-panel">
       {GROUPS.map(([label, rows]) => (
         <div key={label} className="hotkeys-group">
-          <div className="settings-section" style={{ width: 250 }}>{label}</div>
+          <div className="settings-section" style={{ width: 320 }}>{label}</div>
           {rows.map(([key, desc]) => (
             <div key={key} className="hotkeys-row">
               <span className="hotkeys-key">{key}</span>
