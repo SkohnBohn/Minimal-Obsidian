@@ -37,6 +37,7 @@ export default function App() {
   }, [])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [vaultReady, setVaultReady] = useState(false)
+  const [keyboardOnlyTabs, setKeyboardOnlyTabs] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
 
@@ -93,6 +94,9 @@ export default function App() {
   useEffect(() => {
     window.api.settings.get('theme').then(t => {
       document.documentElement.dataset.theme = (t as string | undefined) ?? 'solace'
+    })
+    window.api.settings.get('keyboardOnlyTabs').then(v => {
+      if (v !== undefined) setKeyboardOnlyTabs(v as boolean)
     })
   }, [])
 
@@ -289,6 +293,7 @@ export default function App() {
             onActivate={setActiveTabId}
             onClose={handleCloseTab}
             onReorder={reorderTab}
+            keyboardOnly={keyboardOnlyTabs}
           />
 
           <div className="editor-pane">
@@ -301,7 +306,11 @@ export default function App() {
             ) : activeTab?.type === 'hotkeys' ? (
               <HotkeysPanel />
             ) : activeTab?.type === 'settings' ? (
-              <SettingsPanel onVaultSet={files => { setFiles(files); setVaultReady(true) }} />
+              <SettingsPanel
+                onVaultSet={files => { setFiles(files); setVaultReady(true) }}
+                keyboardOnlyTabs={keyboardOnlyTabs}
+                onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
+              />
             ) : activeTab ? (
               <>
                 <Editor

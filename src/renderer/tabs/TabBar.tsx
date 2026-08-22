@@ -7,9 +7,10 @@ interface TabBarProps {
   onActivate: (id: string) => void
   onClose: (id: string) => void
   onReorder: (fromIdx: number, toIdx: number) => void
+  keyboardOnly?: boolean
 }
 
-export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReorder }: TabBarProps) {
+export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReorder, keyboardOnly }: TabBarProps) {
   const [dragSrc, setDragSrc] = useState<number | null>(null)
   const [insertAt, setInsertAt] = useState<number | null>(null)
 
@@ -52,7 +53,7 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReord
           ].filter(Boolean).join(' ')}
           style={{ opacity: dragSrc === i ? 0.35 : 1 }}
           draggable
-          onClick={() => onActivate(tab.id)}
+          onClick={keyboardOnly ? undefined : () => onActivate(tab.id)}
           onDragStart={e => handleDragStart(e, i)}
           onDragOver={e => handleDragOver(e, i)}
           onDrop={e => handleDrop(e, i)}

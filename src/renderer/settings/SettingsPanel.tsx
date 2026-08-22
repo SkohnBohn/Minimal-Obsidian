@@ -7,6 +7,8 @@ interface FileEntry { name: string; path: string; mtime: number }
 
 interface Props {
   onVaultSet: (files: FileEntry[]) => void
+  keyboardOnlyTabs: boolean
+  onKeyboardOnlyTabsChange: (v: boolean) => void
 }
 
 function applyTheme(t: Theme) {
@@ -18,7 +20,7 @@ function basename(p: string) {
   return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
 }
 
-export default function SettingsPanel({ onVaultSet }: Props) {
+export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboardOnlyTabsChange }: Props) {
   const [includeSources, setIncludeSources] = useState(true)
   const [theme, setTheme] = useState<Theme>('solace')
   const [currentPath, setCurrentPath] = useState<string | null>(null)
@@ -107,6 +109,12 @@ export default function SettingsPanel({ onVaultSet }: Props) {
       <label className="settings-row">
         <input type="checkbox" checked={includeSources} onChange={toggle} />
         include sources in search
+      </label>
+
+      <div className="settings-section">tabs</div>
+      <label className="settings-row">
+        <input type="checkbox" checked={keyboardOnlyTabs} onChange={e => onKeyboardOnlyTabsChange(e.target.checked)} />
+        keyboard only tab switching
       </label>
 
       <div className="settings-section">vault</div>
