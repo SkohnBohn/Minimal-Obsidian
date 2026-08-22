@@ -214,6 +214,8 @@ input {
 .tabbar-settings-btn {
   flex-shrink: 0;
   width: var(--rail-w);
+  height: 28px;
+  align-self: center;
   background: transparent;
   border: none;
   border-right: 1px solid var(--ash);
