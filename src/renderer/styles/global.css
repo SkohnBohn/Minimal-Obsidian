@@ -631,7 +631,9 @@ input {
   letter-spacing: 0.08em;
   color: var(--stone);
   width: 220px;
+  margin-top: 12px;
 }
+.settings-section:first-child { margin-top: 0; }
 
 .settings-vault-path {
   font-size: 12px;
