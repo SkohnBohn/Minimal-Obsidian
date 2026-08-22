@@ -285,24 +285,24 @@ export function useTabs() {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t))
   }, [])
 
-  const openGraphTab = useCallback(() => {
-    const existing = tabsRef.current.find(t => t.type === 'graph')
+  const openGraphTab = useCallback((forceNew?: boolean) => {
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'graph')
     if (existing) { activateTab(existing.id); return }
     const gt = makeGraphTab()
     setTabs(prev => [...prev, gt])
     activateTab(gt.id)
   }, [activateTab])
 
-  const openSettingsTab = useCallback(() => {
-    const existing = tabsRef.current.find(t => t.type === 'settings')
+  const openSettingsTab = useCallback((forceNew?: boolean) => {
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'settings')
     if (existing) { activateTab(existing.id); return }
     const st = makeSettingsTab()
     setTabs(prev => [...prev, st])
     activateTab(st.id)
   }, [activateTab])
 
-  const openHotkeysTab = useCallback(() => {
-    const existing = tabsRef.current.find(t => t.type === 'hotkeys')
+  const openHotkeysTab = useCallback((forceNew?: boolean) => {
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'hotkeys')
     if (existing) { activateTab(existing.id); return }
     const ht = makeHotkeysTab()
     setTabs(prev => [...prev, ht])

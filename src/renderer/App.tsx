@@ -279,21 +279,21 @@ export default function App() {
             <button
               className="rail-btn"
               data-tip="settings"
-              onClick={openSettingsTab}
+              onClick={() => openSettingsTab(true)}
             >
               ◎
             </button>
             <button
               className="rail-btn"
               data-tip="graph"
-              onClick={openGraphTab}
+              onClick={() => openGraphTab(true)}
             >
               ⬡
             </button>
             <button
               className="rail-btn"
               data-tip="shortcuts"
-              onClick={openHotkeysTab}
+              onClick={() => openHotkeysTab(true)}
             >
               ⌘
             </button>
