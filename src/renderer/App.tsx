@@ -314,7 +314,7 @@ export default function App() {
         <div className="main">
           <TabBar
             tabs={tabs}
-            activeTabId={activeTabId}
+            activeTabId={inlineSettings ? null : activeTabId}
             onActivate={id => { setActiveTabId(id); setInlineSettings(false) }}
             onClose={handleCloseTab}
             onReorder={reorderTab}
