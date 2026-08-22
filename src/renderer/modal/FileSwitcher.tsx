@@ -7,9 +7,16 @@ interface FileEntry {
   mtime: number
 }
 
+interface PanelEntry {
+  name: string
+  type: string
+  open: () => void
+}
+
 interface FileSwitcherProps {
   tabs: Tab[]
   files: FileEntry[]
+  panels: PanelEntry[]
   onActivateTab: (id: string) => void
   onOpen: (name: string) => void
   onClose: () => void
@@ -21,7 +28,7 @@ interface ResultItem {
   activate: () => void
 }
 
-function buildResults(tabs: Tab[], files: FileEntry[], query: string, onActivateTab: (id: string) => void, onOpen: (name: string) => void): ResultItem[] {
+function buildResults(tabs: Tab[], files: FileEntry[], panels: PanelEntry[], query: string, onActivateTab: (id: string) => void, onOpen: (name: string) => void): ResultItem[] {
   const q = query.toLowerCase()
 
   // All open tabs sorted by lastUsed descending, filtered by query
@@ -29,6 +36,12 @@ function buildResults(tabs: Tab[], files: FileEntry[], query: string, onActivate
     .sort((a, b) => b.lastUsed - a.lastUsed)
     .filter(t => !q || t.name.toLowerCase().includes(q))
     .map(t => ({ key: t.id, label: t.name, activate: () => onActivateTab(t.id) }))
+
+  // Panels not already open as a tab
+  const openTypes = new Set(tabs.map(t => t.type))
+  const panelItems: ResultItem[] = panels
+    .filter(p => !openTypes.has(p.type as Tab['type']) && (!q || p.name.toLowerCase().includes(q)))
+    .map(p => ({ key: `panel:${p.type}`, label: p.name, activate: p.open }))
 
   // Files not already open as a tab, filtered by query
   const openPaths = new Set(tabs.map(t => t.path).filter(Boolean))
@@ -41,15 +54,15 @@ function buildResults(tabs: Tab[], files: FileEntry[], query: string, onActivate
     .slice(0, 20)
     .map(f => ({ key: f.path, label: f.name, activate: () => onOpen(f.name) }))
 
-  return [...tabItems, ...fileItems].slice(0, 20)
+  return [...tabItems, ...panelItems, ...fileItems].slice(0, 20)
 }
 
-export default function FileSwitcher({ tabs, files, onActivateTab, onOpen, onClose }: FileSwitcherProps) {
+export default function FileSwitcher({ tabs, files, panels, onActivateTab, onOpen, onClose }: FileSwitcherProps) {
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const results = buildResults(tabs, files, query, onActivateTab, onOpen)
+  const results = buildResults(tabs, files, panels, query, onActivateTab, onOpen)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => { setSelectedIdx(0) }, [query])

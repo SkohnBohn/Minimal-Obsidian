@@ -174,9 +174,9 @@ export default function App() {
   }, [closeTab, showSaveError])
 
   const handleNavigateNote = useCallback((name: string) => {
-    if (activeTabId) navigateInTab(activeTabId, name)
+    if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name)
     else openTabByName(name)
-  }, [activeTabId, navigateInTab, openTabByName])
+  }, [activeTab, activeTabId, navigateInTab, openTabByName])
 
   const handleOpenNote = useCallback((name: string) => openTabByName(name), [openTabByName])
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
@@ -366,6 +366,11 @@ export default function App() {
         <FileSwitcher
           tabs={tabs}
           files={files}
+          panels={[
+            { name: 'Graph', type: 'graph', open: () => { openGraphTab(); setShowSwitcher(false) } },
+            { name: 'Settings', type: 'settings', open: () => { openSettingsTab(); setShowSwitcher(false) } },
+            { name: 'Shortcuts', type: 'hotkeys', open: () => { openHotkeysTab(); setShowSwitcher(false) } },
+          ]}
           onActivateTab={id => { setActiveTabId(id); setShowSwitcher(false) }}
           onOpen={name => { handleNavigateNote(name); setShowSwitcher(false) }}
           onClose={() => setShowSwitcher(false)}
