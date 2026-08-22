@@ -223,6 +223,15 @@ app.whenReady().then(() => {
   ])
   Menu.setApplicationMenu(menu)
 
+  // Ctrl+Shift+Tab (backtab): macOS routes this through a different path than Tab,
+  // so the NSMenuItem key equivalent above doesn't fire. Catch it here instead.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'Tab' && input.control && input.shift && !input.meta && !input.alt) {
+      event.preventDefault()
+      win.webContents.send('app:switch-tab', 'prev')
+    }
+  })
+
   // Give the renderer a chance to flush unsaved writes before quitting.
   let readyToQuit = false
   app.on('before-quit', (e) => {
