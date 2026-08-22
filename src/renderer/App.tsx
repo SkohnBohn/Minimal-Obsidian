@@ -266,10 +266,10 @@ export default function App() {
         <div className="rail">
           <button
             className="rail-btn"
-            data-tip="shortcuts"
-            onClick={openHotkeysTab}
+            data-tip="settings"
+            onClick={openSettingsTab}
           >
-            ⌘
+            ◎
           </button>
           <button
             className="rail-btn"
@@ -280,10 +280,10 @@ export default function App() {
           </button>
           <button
             className="rail-btn"
-            data-tip="settings"
-            onClick={openSettingsTab}
+            data-tip="shortcuts"
+            onClick={openHotkeysTab}
           >
-            ◎
+            ⌘
           </button>
         </div>
 
