@@ -623,50 +623,50 @@ input {
   width: 220px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .settings-vault-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .settings-vault-item-name {
   flex: 1;
-  text-align: left;
-  font-size: 12px;
+  font-size: 11px;
   font-family: var(--font);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--stone);
   background: transparent;
-  border: none;
-  padding: 4px 6px;
+  border: 1px solid var(--ash);
+  padding: 4px 8px;
   cursor: pointer;
-  border-radius: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 80ms, background 80ms;
+  text-align: left;
+  transition: color 80ms;
 }
 
 .settings-vault-item-name:hover {
   color: var(--ink);
-  background: var(--bg-inset);
 }
 
 .settings-vault-item.active .settings-vault-item-name {
   color: var(--ink);
-  font-weight: 500;
+  border-color: var(--stone);
 }
 
 .settings-vault-item-remove {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   color: var(--ash);
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 2px 2px;
   flex-shrink: 0;
   transition: color 80ms;
 }
@@ -694,7 +694,7 @@ input {
 
 .settings-vault-error {
   font-size: 12px;
-  color: #a03030;
+  color: var(--stone);
   width: 220px;
 }
 
