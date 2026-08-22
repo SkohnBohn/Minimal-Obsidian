@@ -367,7 +367,7 @@ export default function App() {
           tabs={tabs}
           files={files}
           onActivateTab={id => { setActiveTabId(id); setShowSwitcher(false) }}
-          onOpen={name => { handleOpenNote(name); setShowSwitcher(false) }}
+          onOpen={name => { handleNavigateNote(name); setShowSwitcher(false) }}
           onClose={() => setShowSwitcher(false)}
         />
       )}
