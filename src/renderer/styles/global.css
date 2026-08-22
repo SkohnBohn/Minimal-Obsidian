@@ -211,6 +211,22 @@ input {
 
 .tabbar::-webkit-scrollbar { display: none; }
 
+.tabbar-settings-btn {
+  flex-shrink: 0;
+  width: 36px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--ash);
+  color: var(--stone);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 80ms;
+}
+.tabbar-settings-btn:hover { color: var(--ink); }
+
 .tab {
   display: flex;
   align-items: center;

@@ -38,6 +38,7 @@ export default function App() {
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [vaultReady, setVaultReady] = useState(false)
   const [keyboardOnlyTabs, setKeyboardOnlyTabs] = useState(false)
+  const [hideRail, setHideRail] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
 
@@ -97,6 +98,9 @@ export default function App() {
     })
     window.api.settings.get('keyboardOnlyTabs').then(v => {
       if (v !== undefined) setKeyboardOnlyTabs(v as boolean)
+    })
+    window.api.settings.get('hideRail').then(v => {
+      if (v !== undefined) setHideRail(v as boolean)
     })
   }, [])
 
@@ -269,29 +273,31 @@ export default function App() {
 
       <div className="app-row">
         {/* Left rail */}
-        <div className="rail">
-          <button
-            className="rail-btn"
-            data-tip="settings"
-            onClick={openSettingsTab}
-          >
-            ◎
-          </button>
-          <button
-            className="rail-btn"
-            data-tip="graph"
-            onClick={openGraphTab}
-          >
-            ⬡
-          </button>
-          <button
-            className="rail-btn"
-            data-tip="shortcuts"
-            onClick={openHotkeysTab}
-          >
-            ⌘
-          </button>
-        </div>
+        {!hideRail && (
+          <div className="rail">
+            <button
+              className="rail-btn"
+              data-tip="settings"
+              onClick={openSettingsTab}
+            >
+              ◎
+            </button>
+            <button
+              className="rail-btn"
+              data-tip="graph"
+              onClick={openGraphTab}
+            >
+              ⬡
+            </button>
+            <button
+              className="rail-btn"
+              data-tip="shortcuts"
+              onClick={openHotkeysTab}
+            >
+              ⌘
+            </button>
+          </div>
+        )}
 
         {/* Search sidebar — in flow, pushes main to the right */}
         {showSidebar && (
@@ -312,6 +318,7 @@ export default function App() {
             onClose={handleCloseTab}
             onReorder={reorderTab}
             keyboardOnly={keyboardOnlyTabs}
+            onSettings={hideRail ? openSettingsTab : undefined}
           />
 
           <div className="editor-pane">
@@ -328,6 +335,8 @@ export default function App() {
                 onVaultSet={files => { setFiles(files); setVaultReady(true) }}
                 keyboardOnlyTabs={keyboardOnlyTabs}
                 onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
+                hideRail={hideRail}
+                onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
               />
             ) : activeTab ? (
               <>

@@ -9,6 +9,8 @@ interface Props {
   onVaultSet: (files: FileEntry[]) => void
   keyboardOnlyTabs: boolean
   onKeyboardOnlyTabsChange: (v: boolean) => void
+  hideRail: boolean
+  onHideRailChange: (v: boolean) => void
 }
 
 function applyTheme(t: Theme) {
@@ -20,7 +22,7 @@ function basename(p: string) {
   return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
 }
 
-export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboardOnlyTabsChange }: Props) {
+export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboardOnlyTabsChange, hideRail, onHideRailChange }: Props) {
   const [includeSources, setIncludeSources] = useState(true)
   const [theme, setTheme] = useState<Theme>('solace')
   const [currentPath, setCurrentPath] = useState<string | null>(null)
@@ -115,6 +117,10 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
       <label className="settings-row">
         <input type="checkbox" checked={keyboardOnlyTabs} onChange={e => onKeyboardOnlyTabsChange(e.target.checked)} />
         keyboard only tab switching
+      </label>
+      <label className="settings-row">
+        <input type="checkbox" checked={hideRail} onChange={e => onHideRailChange(e.target.checked)} />
+        hide left bar
       </label>
 
       <div className="settings-section">vault</div>
