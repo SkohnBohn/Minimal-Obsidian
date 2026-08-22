@@ -49,6 +49,10 @@ input {
   border-bottom: 1px solid var(--ash);
 }
 
+:root[data-fullscreen="true"] .titlebar {
+  display: none;
+}
+
 .app-row {
   flex: 1;
   display: flex;

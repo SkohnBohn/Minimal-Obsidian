@@ -68,6 +68,11 @@ const api = {
       ipcRenderer.on('app:switch-tab', handler)
       return () => ipcRenderer.removeListener('app:switch-tab', handler)
     },
+    onFullscreen: (cb: (isFullscreen: boolean) => void): (() => void) => {
+      const handler = (_: unknown, v: boolean) => cb(v)
+      ipcRenderer.on('app:fullscreen', handler)
+      return () => ipcRenderer.removeListener('app:fullscreen', handler)
+    },
     confirmQuit: (): Promise<void> => ipcRenderer.invoke('app:confirm-quit')
   }
 }

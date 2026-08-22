@@ -213,6 +213,12 @@ export default function App() {
   }, [switchTab])
 
   useEffect(() => {
+    return window.api.app.onFullscreen(fs => {
+      document.documentElement.dataset.fullscreen = fs ? 'true' : 'false'
+    })
+  }, [])
+
+  useEffect(() => {
     return window.api.app.onWillQuit(async () => {
       // Cancel pending debounce timers and write dirty open tabs immediately.
       for (const timer of saveTimers.current.values()) clearTimeout(timer)

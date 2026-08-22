@@ -185,6 +185,9 @@ app.whenReady().then(() => {
   // Cmd+Option+I opens DevTools
   globalShortcut.register('CommandOrControl+Alt+I', () => win.webContents.toggleDevTools())
 
+  win.on('enter-full-screen', () => win.webContents.send('app:fullscreen', true))
+  win.on('leave-full-screen', () => win.webContents.send('app:fullscreen', false))
+
   // Intercept Ctrl+Tab / Ctrl+Shift+Tab before macOS swallows them
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.key === 'Tab' && input.control && !input.meta && !input.alt) {
