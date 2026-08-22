@@ -615,14 +615,20 @@ input {
   color: var(--stone);
 }
 
-/* Settings panel */
+/* Settings panel — fixed left anchor so toggling the rail doesn't shift content */
 .settings-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   padding-top: 48px;
+  padding-left: 80px;
   gap: 16px;
+}
+/* When rail is hidden the main area is wider by --rail-w; add that back so
+   the settings content stays at the same absolute screen position */
+.app-row[data-hide-rail] .settings-panel {
+  padding-left: calc(80px + var(--rail-w));
 }
 
 .settings-section {

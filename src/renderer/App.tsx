@@ -272,7 +272,7 @@ export default function App() {
       {/* Draggable titlebar strip — sits above everything, keeps traffic lights clear */}
       <div className="titlebar" />
 
-      <div className="app-row">
+      <div className="app-row" data-hide-rail={hideRail ? 'true' : undefined}>
         {/* Left rail */}
         {!hideRail && (
           <div className="rail">
