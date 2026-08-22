@@ -319,7 +319,7 @@ export default function App() {
             onClose={handleCloseTab}
             onReorder={reorderTab}
             keyboardOnly={keyboardOnlyTabs}
-            onSettings={hideRail ? () => setInlineSettings(v => !v) : undefined}
+            onSettings={hideRail ? () => setInlineSettings(true) : undefined}
             settingsActive={hideRail && inlineSettings}
           />
 
