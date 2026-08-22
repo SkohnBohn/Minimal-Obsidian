@@ -90,6 +90,7 @@ input {
 }
 
 .rail-btn:hover { opacity: 0.7; }
+.rail-btn[data-tip="shortcuts"] { font-weight: 200; }
 .rail-btn.active { color: var(--link); }
 
 .rail-btn[data-tip] { position: relative; }
