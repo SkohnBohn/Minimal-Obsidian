@@ -197,6 +197,10 @@ export default function App() {
   }, [activeTab, editingTitle, titleInput, renameTab, clearNaming])
 
   useEffect(() => {
+    return window.api.app.onSwitchTab(dir => switchTab(dir))
+  }, [switchTab])
+
+  useEffect(() => {
     return window.api.app.onWillQuit(async () => {
       // Cancel pending debounce timers and write dirty open tabs immediately.
       for (const timer of saveTimers.current.values()) clearTimeout(timer)
@@ -224,10 +228,6 @@ export default function App() {
         e.preventDefault(); createNewTab()
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
         e.preventDefault(); if (activeTabId) handleCloseTab(activeTabId)
-      } else if (meta && e.shiftKey && !e.altKey && e.key === '[') {
-        e.preventDefault(); switchTab('prev')
-      } else if (meta && e.shiftKey && !e.altKey && e.key === ']') {
-        e.preventDefault(); switchTab('next')
       } else if (meta && e.altKey && e.key === 'ArrowLeft') {
         e.preventDefault(); if (activeTabId) goBack(activeTabId)
       } else if (meta && e.altKey && e.key === 'ArrowRight') {

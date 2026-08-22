@@ -185,6 +185,14 @@ app.whenReady().then(() => {
   // Cmd+Option+I opens DevTools
   globalShortcut.register('CommandOrControl+Alt+I', () => win.webContents.toggleDevTools())
 
+  // Intercept Ctrl+Tab / Ctrl+Shift+Tab before macOS swallows them
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'Tab' && input.control && !input.meta && !input.alt) {
+      event.preventDefault()
+      win.webContents.send('app:switch-tab', input.shift ? 'prev' : 'next')
+    }
+  })
+
   // Give the renderer a chance to flush unsaved writes before quitting.
   let readyToQuit = false
   app.on('before-quit', (e) => {

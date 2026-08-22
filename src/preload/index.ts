@@ -63,6 +63,11 @@ const api = {
       ipcRenderer.on('app:will-quit', handler)
       return () => ipcRenderer.removeListener('app:will-quit', handler)
     },
+    onSwitchTab: (cb: (dir: 'prev' | 'next') => void): (() => void) => {
+      const handler = (_: unknown, dir: 'prev' | 'next') => cb(dir)
+      ipcRenderer.on('app:switch-tab', handler)
+      return () => ipcRenderer.removeListener('app:switch-tab', handler)
+    },
     confirmQuit: (): Promise<void> => ipcRenderer.invoke('app:confirm-quit')
   }
 }

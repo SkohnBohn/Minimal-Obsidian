@@ -30,6 +30,7 @@ declare global {
       }
       app: {
         onWillQuit(cb: () => void): () => void
+        onSwitchTab(cb: (dir: 'prev' | 'next') => void): () => void
         confirmQuit(): Promise<void>
       }
     }
