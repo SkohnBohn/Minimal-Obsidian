@@ -60,11 +60,13 @@ export default function FileSwitcher({ tabs, files, panels, onOpen, onClose }: F
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const selectedRef = useRef<HTMLDivElement>(null)
 
   const results = buildResults(tabs, files, panels, query, onOpen)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => { setSelectedIdx(0) }, [query])
+  useEffect(() => { selectedRef.current?.scrollIntoView({ block: 'nearest' }) }, [selectedIdx])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -105,6 +107,7 @@ export default function FileSwitcher({ tabs, files, panels, onOpen, onClose }: F
           {results.map((r, i) => (
             <div
               key={r.key}
+              ref={i === selectedIdx ? selectedRef : null}
               className={`modal-result${i === selectedIdx ? ' selected' : ''}`}
               onClick={() => { r.activate(); onClose() }}
             >
