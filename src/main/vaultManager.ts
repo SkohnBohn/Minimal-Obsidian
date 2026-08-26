@@ -41,6 +41,10 @@ function activeDirs(): string[] {
   return vaultPath ? [vaultPath] : []
 }
 
+export function getActiveDirs(): string[] {
+  return activeDirs()
+}
+
 export async function listFiles(): Promise<FileEntry[]> {
   const dirs = activeDirs()
   if (!dirs.length) return []
@@ -83,14 +87,15 @@ export async function findAsset(filename: string): Promise<string | null> {
 }
 
 export async function saveAsset(filename: string, data: Buffer): Promise<string> {
-  if (!vaultPath) throw new Error('No vault open')
+  const dir = activeWriteDir()
+  if (!dir) throw new Error('No vault open')
   const ext = path.extname(filename)
   const base = path.basename(filename, ext)
   let finalName = filename
-  let filePath = path.join(vaultPath, finalName)
+  let filePath = path.join(dir, finalName)
   let counter = 1
   while (true) {
-    try { await fs.access(filePath); finalName = `${base} ${counter++}${ext}`; filePath = path.join(vaultPath, finalName) }
+    try { await fs.access(filePath); finalName = `${base} ${counter++}${ext}`; filePath = path.join(dir, finalName) }
     catch { break }
   }
   await fs.writeFile(filePath, data)
@@ -122,8 +127,7 @@ export async function createFile(name: string): Promise<string> {
 }
 
 export async function renameFile(oldPath: string, newName: string): Promise<string> {
-  const dir = activeWriteDir()
-  if (!dir) throw new Error('No vault open')
+  if (!activeWriteDir()) throw new Error('No vault open')
   const safeName = newName.endsWith('.md') ? newName : `${newName}.md`
   // Rename stays in the same directory as the original file
   const fileDir = path.dirname(oldPath)

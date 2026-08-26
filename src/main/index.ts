@@ -8,6 +8,7 @@ import {
   setOverlayPaths,
   getOverlayPaths,
   setOverlayModeActive,
+  getActiveDirs,
   listFiles,
   readFile,
   writeFile,
@@ -76,6 +77,7 @@ function registerIPC(win: BrowserWindow): void {
       if (!saved.includes(vaultDir)) store.set('savedVaults', [...saved, vaultDir])
       // Reset overlay to new primary vault only
       setOverlayPaths([])
+      setOverlayModeActive(false)
       store.set('overlayPaths', [])
       store.set('overlayMode', false)
       startWatcher(win)
@@ -107,10 +109,11 @@ function registerIPC(win: BrowserWindow): void {
     if (!enabled) {
       // Collapse back to primary vault; if primary was cleared, promote first overlay path
       if (!primary) {
-        const overlayPaths = (store.get('overlayPaths') as string[] | undefined) ?? []
-        primary = overlayPaths[0] ?? null
+        // Use in-memory paths (authoritative) — store may lag behind rapid toggles
+        primary = getOverlayPaths()[0] ?? null
         setVaultPath(primary)
         if (primary) store.set('vaultPath', primary)
+        else store.delete('vaultPath')
       }
       setOverlayPaths([])
       store.set('overlayPaths', [])
@@ -126,7 +129,8 @@ function registerIPC(win: BrowserWindow): void {
 
   ipcMain.handle('vault:toggleOverlayPath', async (_e, vaultDir: string) => {
     const primary = getVaultPath()
-    const current = (store.get('overlayPaths') as string[] | undefined) ?? (primary ? [primary] : [])
+    // Use in-memory paths (authoritative) — store may lag behind rapid successive toggles
+    const current = getOverlayPaths()
     const isActive = current.includes(vaultDir)
     const newPaths = isActive ? current.filter(p => p !== vaultDir) : [...current, vaultDir]
     setOverlayPaths(newPaths)
@@ -137,7 +141,9 @@ function registerIPC(win: BrowserWindow): void {
       // Primary was deselected — transfer to first remaining active vault (or null)
       newPrimary = newPaths[0] ?? null
       setVaultPath(newPrimary)
+      // Always persist — including null, so restart doesn't revive the deselected vault
       if (newPrimary) store.set('vaultPath', newPrimary)
+      else store.delete('vaultPath')
     } else if (!isActive && !primary) {
       // No primary yet — the newly activated vault becomes primary
       newPrimary = vaultDir
@@ -234,8 +240,8 @@ app.whenReady().then(() => {
       const url = new URL(request.url)
       const filename = decodeURIComponent(url.pathname.slice(1))
       if (!filename) return new Response('Not found', { status: 404 })
-      // Check all active vault directories (overlay-aware)
-      const activeDirs = getOverlayPaths().length > 0 ? getOverlayPaths() : (getVaultPath() ? [getVaultPath()!] : [])
+      // Check all active vault directories (overlay-aware, uses same logic as file I/O)
+      const activeDirs = getActiveDirs()
       const filePath = path.resolve(filename.includes(path.sep) || filename.includes('/')
         ? filename
         : path.join(activeDirs[0] ?? '', filename))
@@ -253,14 +259,14 @@ app.whenReady().then(() => {
   const win = createWindow()
 
   const savedVault = store.get('vaultPath') as string | undefined
-  if (savedVault) {
-    setVaultPath(savedVault)
-    const overlayMode = store.get('overlayMode') as boolean | undefined
-    const savedOverlayPaths = store.get('overlayPaths') as string[] | undefined
-    if (overlayMode && savedOverlayPaths?.length) {
-      setOverlayPaths(savedOverlayPaths)
-      setOverlayModeActive(true)
-    }
+  const overlayMode = (store.get('overlayMode') ?? false) as boolean
+  const savedOverlayPaths = (store.get('overlayPaths') ?? []) as string[]
+  if (savedVault) setVaultPath(savedVault)
+  if (overlayMode) {
+    setOverlayModeActive(true)
+    if (savedOverlayPaths.length) setOverlayPaths(savedOverlayPaths)
+  }
+  if (savedVault || (overlayMode && savedOverlayPaths.length)) {
     startWatcher(win)
   }
 
