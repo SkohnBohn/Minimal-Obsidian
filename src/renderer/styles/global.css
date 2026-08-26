@@ -689,7 +689,7 @@ input {
   height: 5px;
   border-radius: 50%;
   background: var(--link);
-  left: 7px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
