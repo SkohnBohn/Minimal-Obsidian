@@ -7,6 +7,10 @@ interface FileEntry { name: string; path: string; mtime: number }
 
 interface Props {
   onVaultSet: (files: FileEntry[], newPath: string) => void
+  overlayMode: boolean
+  overlayPaths: string[]
+  onOverlayModeChange: (enabled: boolean, files: FileEntry[]) => void
+  onVaultToggle: (vaultPath: string, files: FileEntry[], deactivatedPath?: string) => void
   keyboardOnlyTabs: boolean
   onKeyboardOnlyTabsChange: (v: boolean) => void
   hideRail: boolean
@@ -22,7 +26,7 @@ function basename(p: string) {
   return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
 }
 
-export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboardOnlyTabsChange, hideRail, onHideRailChange }: Props) {
+export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, onOverlayModeChange, onVaultToggle, keyboardOnlyTabs, onKeyboardOnlyTabsChange, hideRail, onHideRailChange }: Props) {
   const [includeSources, setIncludeSources] = useState(true)
   const [theme, setTheme] = useState<Theme>('solace')
   const [currentPath, setCurrentPath] = useState<string | null>(null)
@@ -139,29 +143,58 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
 
       <div className="settings-section">vault</div>
 
+      <label className="settings-row">
+        <input
+          type="checkbox"
+          checked={overlayMode}
+          onChange={async e => {
+            const result = await window.api.vault.setOverlayMode(e.target.checked)
+            onOverlayModeChange(e.target.checked, result.files)
+          }}
+        />
+        overlaying vaults
+      </label>
+
       {savedVaults.length > 0 && (
         <div className="settings-vault-list">
-          {savedVaults.map(p => (
-            <div
-              key={p}
-              className={`settings-vault-item${p === currentPath ? ' active' : ''}`}
-            >
-              <button
-                className="settings-vault-item-name"
-                title={p}
-                onClick={() => switchVault(p)}
+          {savedVaults.map(p => {
+            const isPrimary = p === currentPath
+            const isOverlayActive = overlayPaths.includes(p)
+            return (
+              <div
+                key={p}
+                className={`settings-vault-item${(!overlayMode && isPrimary) || (overlayMode && isOverlayActive) ? ' active' : ''}`}
               >
-                {basename(p)}
-              </button>
-              <button
-                className="settings-vault-item-remove"
-                onClick={() => removeVault(p)}
-                aria-label="remove"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+                {overlayMode && (
+                  <input
+                    type="checkbox"
+                    className="settings-vault-item-check"
+                    checked={isOverlayActive}
+                    disabled={isPrimary}
+                    onChange={async () => {
+                      const result = await window.api.vault.toggleOverlayPath(p)
+                      onVaultToggle(p, result.files, result.deactivatedPath)
+                    }}
+                  />
+                )}
+                <button
+                  className="settings-vault-item-name"
+                  title={p}
+                  onClick={() => { if (!overlayMode) switchVault(p) }}
+                  style={overlayMode ? { cursor: 'default' } : undefined}
+                >
+                  {basename(p)}
+                </button>
+                <button
+                  className="settings-vault-item-remove"
+                  onClick={() => removeVault(p)}
+                  aria-label="remove"
+                >
+                  ×
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 

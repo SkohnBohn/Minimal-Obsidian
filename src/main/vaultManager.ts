@@ -11,6 +11,7 @@ export interface FileEntry {
 }
 
 let vaultPath: string | null = null
+let overlayPaths: string[] = []  // all active vault dirs; always includes vaultPath when set
 let watcher: FSWatcher | null = null
 
 export function setVaultPath(p: string): void {
@@ -21,37 +22,57 @@ export function getVaultPath(): string | null {
   return vaultPath
 }
 
+export function setOverlayPaths(paths: string[]): void {
+  overlayPaths = paths
+}
+
+export function getOverlayPaths(): string[] {
+  return overlayPaths
+}
+
+function activeDirs(): string[] {
+  if (overlayPaths.length > 0) return overlayPaths
+  return vaultPath ? [vaultPath] : []
+}
+
 export async function listFiles(): Promise<FileEntry[]> {
-  if (!vaultPath) return []
-  const entries = await fs.readdir(vaultPath, { withFileTypes: true })
+  const dirs = activeDirs()
+  if (!dirs.length) return []
+
+  const seen = new Set<string>()
   const files: FileEntry[] = []
-  for (const e of entries) {
-    if (e.isFile() && e.name.endsWith('.md')) {
-      const filePath = path.join(vaultPath, e.name)
-      const stat = await fs.stat(filePath)
-      files.push({
-        name: e.name.replace(/\.md$/, ''),
-        path: filePath,
-        mtime: stat.mtimeMs
-      })
-    }
+
+  for (const dir of dirs) {
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true })
+      for (const e of entries) {
+        if (!e.isFile() || !e.name.endsWith('.md')) continue
+        const filePath = path.join(dir, e.name)
+        if (seen.has(filePath)) continue
+        seen.add(filePath)
+        const stat = await fs.stat(filePath)
+        files.push({ name: e.name.replace(/\.md$/, ''), path: filePath, mtime: stat.mtimeMs })
+      }
+    } catch { /* skip unreadable vault dir */ }
   }
+
   return files.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// Search vault root + one level of subdirectories (covers Obsidian attachment folders)
+// Search all active vault dirs + one level of subdirectories for an asset
 export async function findAsset(filename: string): Promise<string | null> {
-  if (!vaultPath) return null
-  const rootPath = path.join(vaultPath, filename)
-  try { await fs.access(rootPath); return rootPath } catch {}
-  try {
-    const entries = await fs.readdir(vaultPath, { withFileTypes: true })
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue
-      const subPath = path.join(vaultPath, entry.name, filename)
-      try { await fs.access(subPath); return subPath } catch {}
-    }
-  } catch {}
+  for (const dir of activeDirs()) {
+    const rootPath = path.join(dir, filename)
+    try { await fs.access(rootPath); return rootPath } catch {}
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith('.')) continue
+        const subPath = path.join(dir, entry.name, filename)
+        try { await fs.access(subPath); return subPath } catch {}
+      }
+    } catch {}
+  }
   return null
 }
 
@@ -82,8 +103,6 @@ export async function createFile(name: string): Promise<string> {
   if (!vaultPath) throw new Error('No vault open')
   const safeName = name.endsWith('.md') ? name : `${name}.md`
   const filePath = path.join(vaultPath, safeName)
-  // If the file already exists (including case-insensitive macOS matches), never overwrite it.
-  // Use the canonical path from the directory listing so we return the real filename casing.
   const existing = await findExistingFileCaseInsensitive(safeName)
   if (existing) return existing
   await fs.writeFile(filePath, '', { encoding: 'utf-8', flag: 'wx' })
@@ -94,7 +113,6 @@ export async function renameFile(oldPath: string, newName: string): Promise<stri
   if (!vaultPath) throw new Error('No vault open')
   const safeName = newName.endsWith('.md') ? newName : `${newName}.md`
   const newPath = path.join(vaultPath, safeName)
-  // Prevent silently overwriting a different existing file.
   if (newPath.toLowerCase() !== oldPath.toLowerCase()) {
     const existing = await findExistingFileCaseInsensitive(safeName)
     if (existing) throw new Error(`A note named "${newName}" already exists`)
@@ -120,22 +138,23 @@ async function indexAll(): Promise<void> {
     try {
       const content = await fs.readFile(f.path, 'utf-8')
       indexFile(f.path, f.name, content)
-    } catch {
-      // skip unreadable files
-    }
+    } catch { /* skip */ }
   }
 }
 
 export function startWatcher(win: BrowserWindow): void {
-  if (!vaultPath) return
   if (watcher) {
     watcher.close()
     watcher = null
   }
 
+  const dirs = activeDirs()
+  if (!dirs.length) return
+
   indexAll()
 
-  watcher = chokidar.watch(path.join(vaultPath, '**/*.md'), {
+  const patterns = dirs.map(d => path.join(d, '**/*.md'))
+  watcher = chokidar.watch(patterns, {
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 300 }

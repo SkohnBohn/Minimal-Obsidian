@@ -40,6 +40,8 @@ export default function App() {
   const [keyboardOnlyTabs, setKeyboardOnlyTabs] = useState(false)
   const [hideRail, setHideRail] = useState(false)
   const [inlineSettings, setInlineSettings] = useState(false)
+  const [overlayMode, setOverlayMode] = useState(false)
+  const [overlayPaths, setOverlayPaths] = useState<string[]>([])
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
 
@@ -112,6 +114,9 @@ export default function App() {
       const savedVault = await window.api.settings.get('vaultPath') as string | undefined
       if (savedVault) {
         vaultPathRef.current = savedVault
+        const overlayState = await window.api.vault.getOverlayState()
+        setOverlayMode(overlayState.overlayMode)
+        setOverlayPaths(overlayState.overlayPaths)
         setFiles(await window.api.vault.list())
         setVaultReady(true)
       } else {
@@ -164,6 +169,38 @@ export default function App() {
     [showSaveError]
   )
 
+  function closeTabsFromDir(dir: string) {
+    const sep = dir.endsWith('/') || dir.endsWith('\\') ? dir : dir + '/'
+    tabsRef.current
+      .filter(t => t.path.startsWith(sep))
+      .forEach(t => handleCloseTab(t.id))
+  }
+
+  const handleOverlayModeChange = useCallback((enabled: boolean, files: FileEntry[]) => {
+    setOverlayMode(enabled)
+    if (!enabled) {
+      // Deactivate all non-primary vaults — close their tabs
+      const primary = vaultPathRef.current
+      tabsRef.current
+        .filter(t => t.path && !t.path.startsWith(primary + '/') && !t.path.startsWith(primary + '\\') && t.path !== primary)
+        .forEach(t => handleCloseTab(t.id))
+      setOverlayPaths([])
+    } else {
+      setOverlayPaths(vaultPathRef.current ? [vaultPathRef.current] : [])
+    }
+    setFiles(files)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleVaultToggle = useCallback((vaultPath: string, files: FileEntry[], deactivatedPath?: string) => {
+    setOverlayPaths(prev =>
+      prev.includes(vaultPath) ? prev.filter(p => p !== vaultPath) : [...prev, vaultPath]
+    )
+    if (deactivatedPath) closeTabsFromDir(deactivatedPath)
+    setFiles(files)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleVaultSet = useCallback(async (files: FileEntry[], newPath: string) => {
     const oldPath = vaultPathRef.current
     if (oldPath) {
@@ -180,6 +217,8 @@ export default function App() {
       Record<string, { tabs: Array<{ path: string; name: string; type: string }>; activeTabName: string | null }>
     const saved = allSessions[newPath] ?? null
     vaultPathRef.current = newPath
+    setOverlayMode(false)
+    setOverlayPaths([])
     await resetTabs(saved?.tabs ?? [], saved?.activeTabName ?? null)
     setSearchQuery('')
     setSearchResults([])
@@ -353,6 +392,10 @@ export default function App() {
             {inlineSettings ? (
               <SettingsPanel
                 onVaultSet={handleVaultSet}
+                overlayMode={overlayMode}
+                overlayPaths={overlayPaths}
+                onOverlayModeChange={handleOverlayModeChange}
+                onVaultToggle={handleVaultToggle}
                 keyboardOnlyTabs={keyboardOnlyTabs}
                 onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
                 hideRail={hideRail}
@@ -369,6 +412,10 @@ export default function App() {
             ) : activeTab?.type === 'settings' ? (
               <SettingsPanel
                 onVaultSet={handleVaultSet}
+                overlayMode={overlayMode}
+                overlayPaths={overlayPaths}
+                onOverlayModeChange={handleOverlayModeChange}
+                onVaultToggle={handleVaultToggle}
                 keyboardOnlyTabs={keyboardOnlyTabs}
                 onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
                 hideRail={hideRail}

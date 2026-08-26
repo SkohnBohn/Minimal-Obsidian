@@ -27,8 +27,17 @@ interface ResultItem {
   activate: () => void
 }
 
+function vaultBasename(filePath: string): string {
+  const parts = filePath.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 2] ?? ''
+}
+
 function buildResults(tabs: Tab[], files: FileEntry[], panels: PanelEntry[], query: string, onOpen: (name: string) => void): ResultItem[] {
   const q = query.toLowerCase()
+
+  // Detect name collisions across vaults for hint display
+  const nameCounts = new Map<string, number>()
+  files.forEach(f => nameCounts.set(f.name, (nameCounts.get(f.name) ?? 0) + 1))
 
   // All open tabs sorted by lastUsed descending, filtered by query
   const tabItems: ResultItem[] = [...tabs]
@@ -51,7 +60,11 @@ function buildResults(tabs: Tab[], files: FileEntry[], panels: PanelEntry[], que
       : b.mtime - a.mtime
     )
     .slice(0, 20)
-    .map(f => ({ key: f.path, label: f.name, activate: () => onOpen(f.name) }))
+    .map(f => {
+      const collision = (nameCounts.get(f.name) ?? 0) > 1
+      const label = collision ? `${f.name}  ·  ${vaultBasename(f.path)}` : f.name
+      return { key: f.path, label, activate: () => onOpen(f.name) }
+    })
 
   return [...tabItems, ...panelItems, ...fileItems].slice(0, 20)
 }

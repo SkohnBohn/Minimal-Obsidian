@@ -5,6 +5,8 @@ import Store from 'electron-store'
 import {
   setVaultPath,
   getVaultPath,
+  setOverlayPaths,
+  getOverlayPaths,
   listFiles,
   readFile,
   writeFile,
@@ -70,11 +72,50 @@ function registerIPC(win: BrowserWindow): void {
       // Auto-save to saved vaults list (deduplicated)
       const saved = (store.get('savedVaults') ?? []) as string[]
       if (!saved.includes(vaultDir)) store.set('savedVaults', [...saved, vaultDir])
+      // Reset overlay to new primary vault only
+      setOverlayPaths([])
+      store.set('overlayPaths', [])
+      store.set('overlayMode', false)
       startWatcher(win)
       return { files: await listFiles() }
     } catch {
       return { error: 'Path not found' }
     }
+  })
+
+  ipcMain.handle('vault:getOverlayState', () => ({
+    overlayMode: (store.get('overlayMode') ?? false) as boolean,
+    overlayPaths: (store.get('overlayPaths') ?? []) as string[]
+  }))
+
+  ipcMain.handle('vault:setOverlayMode', async (_e, enabled: boolean) => {
+    store.set('overlayMode', enabled)
+    const primary = getVaultPath()
+    if (!enabled) {
+      // Collapse back to primary vault only
+      setOverlayPaths([])
+      store.set('overlayPaths', [])
+    } else {
+      // Start with just primary; user checks additional vaults from the UI
+      const initialPaths = primary ? [primary] : []
+      setOverlayPaths(initialPaths)
+      store.set('overlayPaths', initialPaths)
+    }
+    startWatcher(win)
+    return { files: await listFiles() }
+  })
+
+  ipcMain.handle('vault:toggleOverlayPath', async (_e, vaultDir: string) => {
+    const primary = getVaultPath()
+    // Primary vault cannot be toggled off
+    if (vaultDir === primary) return { files: await listFiles() }
+    const current = (store.get('overlayPaths') as string[] | undefined) ?? (primary ? [primary] : [])
+    const isActive = current.includes(vaultDir)
+    const newPaths = isActive ? current.filter(p => p !== vaultDir) : [...current, vaultDir]
+    setOverlayPaths(newPaths)
+    store.set('overlayPaths', newPaths)
+    startWatcher(win)
+    return { files: await listFiles(), deactivatedPath: isActive ? vaultDir : undefined }
   })
 
   ipcMain.handle('vault:getPath', () => getVaultPath())
@@ -157,12 +198,14 @@ app.whenReady().then(() => {
     try {
       const url = new URL(request.url)
       const filename = decodeURIComponent(url.pathname.slice(1))
-      const vaultDir = getVaultPath()
-      if (!vaultDir || !filename) return new Response('Not found', { status: 404 })
-      const filePath = path.resolve(path.join(vaultDir, filename))
-      const vaultResolved = path.resolve(vaultDir)
-      if (!filePath.startsWith(vaultResolved + path.sep))
-        return new Response('Forbidden', { status: 403 })
+      if (!filename) return new Response('Not found', { status: 404 })
+      // Check all active vault directories (overlay-aware)
+      const activeDirs = getOverlayPaths().length > 0 ? getOverlayPaths() : (getVaultPath() ? [getVaultPath()!] : [])
+      const filePath = path.resolve(filename.includes(path.sep) || filename.includes('/')
+        ? filename
+        : path.join(activeDirs[0] ?? '', filename))
+      const allowed = activeDirs.some(d => filePath.startsWith(path.resolve(d) + path.sep))
+      if (!allowed) return new Response('Forbidden', { status: 403 })
       const data = await fsAsync.readFile(filePath)
       const ext = path.extname(filename).slice(1).toLowerCase()
       const mime = ASSET_MIME[ext] ?? 'application/octet-stream'
@@ -177,6 +220,11 @@ app.whenReady().then(() => {
   const savedVault = store.get('vaultPath') as string | undefined
   if (savedVault) {
     setVaultPath(savedVault)
+    const overlayMode = store.get('overlayMode') as boolean | undefined
+    const savedOverlayPaths = store.get('overlayPaths') as string[] | undefined
+    if (overlayMode && savedOverlayPaths?.length) {
+      setOverlayPaths(savedOverlayPaths)
+    }
     startWatcher(win)
   }
 

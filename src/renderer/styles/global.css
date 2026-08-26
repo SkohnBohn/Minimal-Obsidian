@@ -663,6 +663,16 @@ input {
   gap: 6px;
 }
 
+.settings-vault-item-check {
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.settings-vault-item-check:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .settings-vault-item-name {
   flex: 1;
   font-size: 11px;
