@@ -706,8 +706,37 @@ input {
   color: var(--stone);
 }
 
-.settings-vault-input {
+.settings-vault-add {
   width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-vault-plus {
+  font-size: 16px;
+  line-height: 1;
+  color: var(--stone);
+  opacity: 0.55;
+  padding: 2px 10px;
+  transition: opacity 80ms;
+}
+
+.settings-vault-plus:hover {
+  opacity: 1;
+}
+
+.settings-vault-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.settings-vault-input {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   font-family: var(--font);
   color: var(--ink);
@@ -726,7 +755,8 @@ input {
 .settings-vault-error {
   font-size: 12px;
   color: var(--stone);
-  width: 220px;
+  width: 100%;
+  text-align: center;
 }
 
 .settings-vault-btn {
@@ -735,10 +765,12 @@ input {
   letter-spacing: 0.06em;
   color: var(--stone);
   border: 1px solid var(--ash);
-  padding: 3px 14px;
+  padding: 3px 10px;
   cursor: pointer;
   background: transparent;
   transition: color 80ms;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .settings-vault-btn:hover {

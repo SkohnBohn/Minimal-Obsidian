@@ -29,6 +29,7 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
   const [savedVaults, setSavedVaults] = useState<string[]>([])
   const [pathInput, setPathInput] = useState('')
   const [pathError, setPathError] = useState<string | null>(null)
+  const [addingVault, setAddingVault] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -87,9 +88,22 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
     if (result.files) {
       setCurrentPath(p)
       setPathInput('')
+      setAddingVault(false)
       window.api.vault.getSaved().then(setSavedVaults)
       onVaultSet(result.files, p)
     }
+  }
+
+  function openAddVault() {
+    setAddingVault(true)
+    setPathError(null)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  function cancelAddVault() {
+    setAddingVault(false)
+    setPathInput('')
+    setPathError(null)
   }
 
   return (
@@ -151,19 +165,28 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
         </div>
       )}
 
-      <input
-        ref={inputRef}
-        className="settings-vault-input"
-        value={pathInput}
-        onChange={e => { setPathInput(e.target.value); setPathError(null) }}
-        onKeyDown={e => { if (e.key === 'Enter') applyVault() }}
-        placeholder="set vault path"
-        spellCheck={false}
-      />
-      {pathError && (
-        <div className="settings-vault-error">{pathError}</div>
-      )}
-      <button className="settings-vault-btn" onClick={applyVault}>set</button>
+      <div className="settings-vault-add">
+        {addingVault ? (
+          <div className="settings-vault-add-row">
+            <input
+              ref={inputRef}
+              className="settings-vault-input"
+              value={pathInput}
+              onChange={e => { setPathInput(e.target.value); setPathError(null) }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') applyVault()
+                if (e.key === 'Escape') cancelAddVault()
+              }}
+              placeholder="set vault path"
+              spellCheck={false}
+            />
+            <button className="settings-vault-btn" onClick={applyVault}>set</button>
+          </div>
+        ) : (
+          <button className="settings-vault-plus" onClick={openAddVault}>+</button>
+        )}
+        {pathError && <div className="settings-vault-error">{pathError}</div>}
+      </div>
     </div>
   )
 }
