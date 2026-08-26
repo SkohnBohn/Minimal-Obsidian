@@ -147,7 +147,8 @@ input {
 }
 
 .sidebar-input:focus {
-  border-color: var(--link);
+  outline: none;
+  border-color: var(--ash);
 }
 
 .sidebar-results {
