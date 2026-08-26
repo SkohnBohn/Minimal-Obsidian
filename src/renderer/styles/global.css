@@ -418,16 +418,16 @@ input {
 
 /* Match highlights */
 .cm-searchMatch {
-  background: rgba(139, 112, 64, 0.15);
+  background: #d4c89a;
 }
 
 .cm-searchMatch-selected {
-  background: rgba(139, 112, 64, 0.38) !important;
+  background: #b09050 !important;
 }
 
 /* CSS Custom Highlight API — non-editor tabs */
 ::highlight(find-highlight) {
-  background-color: rgba(139, 112, 64, 0.28);
+  background-color: #d4c89a;
   color: inherit;
 }
 
