@@ -187,7 +187,7 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
                     }
                   }}
                 >
-                  {isPrimary && <span className="settings-vault-primary-dot" />}
+                  {localOverlayMode && isPrimary && <span className="settings-vault-primary-dot" />}
                   {basename(p)}
                 </button>
                 <button
