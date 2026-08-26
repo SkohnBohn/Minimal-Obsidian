@@ -6,7 +6,7 @@ type Theme = typeof THEMES[number]
 interface FileEntry { name: string; path: string; mtime: number }
 
 interface Props {
-  onVaultSet: (files: FileEntry[]) => void
+  onVaultSet: (files: FileEntry[], newPath: string) => void
   keyboardOnlyTabs: boolean
   onKeyboardOnlyTabsChange: (v: boolean) => void
   hideRail: boolean
@@ -68,7 +68,7 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
     if (result.files) {
       setCurrentPath(p)
       window.api.vault.getSaved().then(setSavedVaults)
-      onVaultSet(result.files)
+      onVaultSet(result.files, p)
     }
   }
 
@@ -88,7 +88,7 @@ export default function SettingsPanel({ onVaultSet, keyboardOnlyTabs, onKeyboard
       setCurrentPath(p)
       setPathInput('')
       window.api.vault.getSaved().then(setSavedVaults)
-      onVaultSet(result.files)
+      onVaultSet(result.files, p)
     }
   }
 

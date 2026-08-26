@@ -309,6 +309,30 @@ export function useTabs() {
     activateTab(ht.id)
   }, [activateTab])
 
+  const resetTabs = useCallback(async (
+    specs: Array<{ path: string; name: string; type: string }>,
+    activeTabName?: string | null
+  ) => {
+    setTabs([])
+    setActiveTabId(null)
+    if (!specs.length) return
+    const restored: Tab[] = []
+    for (const s of specs) {
+      if (s.type === 'graph') { restored.push(makeGraphTab()); continue }
+      if (s.type === 'hotkeys') { restored.push(makeHotkeysTab()); continue }
+      if (s.type === 'settings') { restored.push(makeSettingsTab()); continue }
+      let content = ''
+      try { content = await window.api.vault.read(s.path) } catch { continue }
+      restored.push(makeTab(s.path, s.name, content))
+    }
+    if (!restored.length) return
+    setTabs(restored)
+    const active = activeTabName
+      ? (restored.find(t => t.name === activeTabName) ?? restored[0])
+      : restored[0]
+    setActiveTabId(active.id)
+  }, [])
+
   const reorderTab = useCallback((fromIdx: number, toIdx: number) => {
     setTabs(prev => {
       if (fromIdx === toIdx) return prev
@@ -337,6 +361,6 @@ export function useTabs() {
     navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
-    updateTabState, markTabSaved
+    updateTabState, markTabSaved, resetTabs
   }
 }

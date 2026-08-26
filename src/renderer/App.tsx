@@ -48,8 +48,10 @@ export default function App() {
     openTab, openTabForceNew, openTabByName, navigateInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
-    updateTabState, markTabSaved
+    updateTabState, markTabSaved, resetTabs
   } = useTabs()
+
+  const vaultPathRef = useRef<string>('')
 
   useEffect(() => { setShowFind(false) }, [activeTabId])
 
@@ -109,6 +111,7 @@ export default function App() {
     ;(async () => {
       const savedVault = await window.api.settings.get('vaultPath') as string | undefined
       if (savedVault) {
+        vaultPathRef.current = savedVault
         setFiles(await window.api.vault.list())
         setVaultReady(true)
       } else {
@@ -160,6 +163,29 @@ export default function App() {
     },
     [showSaveError]
   )
+
+  const handleVaultSet = useCallback(async (files: FileEntry[], newPath: string) => {
+    const oldPath = vaultPathRef.current
+    if (oldPath) {
+      const allSessions = ((await window.api.settings.get('vaultSessions')) ?? {}) as
+        Record<string, { tabs: Array<{ path: string; name: string; type: string }>; activeTabName: string | null }>
+      const activeTabName = tabsRef.current.find(t => t.id === activeTabId)?.name ?? null
+      allSessions[oldPath] = {
+        tabs: tabsRef.current.map(t => ({ path: t.path, name: t.name, type: t.type })),
+        activeTabName,
+      }
+      await window.api.settings.set('vaultSessions', allSessions)
+    }
+    const allSessions = ((await window.api.settings.get('vaultSessions')) ?? {}) as
+      Record<string, { tabs: Array<{ path: string; name: string; type: string }>; activeTabName: string | null }>
+    const saved = allSessions[newPath] ?? null
+    vaultPathRef.current = newPath
+    await resetTabs(saved?.tabs ?? [], saved?.activeTabName ?? null)
+    setSearchQuery('')
+    setSearchResults([])
+    setFiles(files)
+    setVaultReady(true)
+  }, [activeTabId, resetTabs])
 
   const handleCloseTab = useCallback(async (tabId: string) => {
     // If there is a pending debounced write, cancel it and flush now so the content
@@ -326,7 +352,7 @@ export default function App() {
           <div className="editor-pane">
             {inlineSettings ? (
               <SettingsPanel
-                onVaultSet={files => { setFiles(files); setVaultReady(true) }}
+                onVaultSet={handleVaultSet}
                 keyboardOnlyTabs={keyboardOnlyTabs}
                 onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
                 hideRail={hideRail}
@@ -342,7 +368,7 @@ export default function App() {
               <HotkeysPanel />
             ) : activeTab?.type === 'settings' ? (
               <SettingsPanel
-                onVaultSet={files => { setFiles(files); setVaultReady(true) }}
+                onVaultSet={handleVaultSet}
                 keyboardOnlyTabs={keyboardOnlyTabs}
                 onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
                 hideRail={hideRail}
