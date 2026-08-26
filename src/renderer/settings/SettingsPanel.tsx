@@ -176,7 +176,7 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
             return (
               <div key={p} className={`settings-vault-item${isActive ? ' active' : ''}`}>
                 <button
-                  className="settings-vault-item-name"
+                  className={`settings-vault-item-name${localOverlayMode && isPrimary ? ' primary' : ''}`}
                   title={p}
                   onClick={async () => {
                     if (!localOverlayMode) {
@@ -201,7 +201,6 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
                     }
                   }}
                 >
-                  {localOverlayMode && isPrimary && <span className="settings-vault-primary-dot" />}
                   {basename(p)}
                 </button>
                 <button

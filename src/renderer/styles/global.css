@@ -663,18 +663,8 @@ input {
   gap: 6px;
 }
 
-.settings-vault-primary-dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--link);
-  margin-right: 6px;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-
 .settings-vault-item-name {
+  position: relative;
   flex: 1;
   font-size: 11px;
   font-family: var(--font);
@@ -690,6 +680,25 @@ input {
   text-overflow: ellipsis;
   text-align: left;
   transition: color 80ms;
+}
+
+.settings-vault-item-name::before {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--link);
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+}
+
+.settings-vault-item-name.primary::before {
+  opacity: 0.75;
 }
 
 .settings-vault-item-name:hover {
