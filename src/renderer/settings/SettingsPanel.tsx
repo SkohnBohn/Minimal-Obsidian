@@ -10,8 +10,8 @@ interface Props {
   onVaultClear: () => void
   overlayMode: boolean
   overlayPaths: string[]
-  onOverlayModeChange: (enabled: boolean, files: FileEntry[]) => void
-  onVaultToggle: (vaultPath: string, files: FileEntry[], deactivatedPath?: string) => void
+  onOverlayModeChange: (enabled: boolean, files: FileEntry[], newPrimary?: string | null) => void
+  onVaultToggle: (vaultPath: string, files: FileEntry[], deactivatedPath?: string, newPrimary?: string | null) => void
   keyboardOnlyTabs: boolean
   onKeyboardOnlyTabsChange: (v: boolean) => void
   hideRail: boolean
@@ -158,7 +158,10 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
             const checked = e.target.checked
             setLocalOverlayMode(checked)
             const result = await window.api.vault.setOverlayMode(checked)
-            onOverlayModeChange(checked, result.files)
+            if (!checked && 'newPrimary' in result && result.newPrimary !== currentPath) {
+              setCurrentPath(result.newPrimary ?? null)
+            }
+            onOverlayModeChange(checked, result.files, result.newPrimary)
           }}
         />
         overlaying vaults
@@ -191,7 +194,10 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
                         : [...localOverlayPaths, p]
                       setLocalOverlayPaths(nextPaths)
                       const result = await window.api.vault.toggleOverlayPath(p)
-                      onVaultToggle(p, result.files, result.deactivatedPath)
+                      if ('newPrimary' in result && result.newPrimary !== currentPath) {
+                        setCurrentPath(result.newPrimary ?? null)
+                      }
+                      onVaultToggle(p, result.files, result.deactivatedPath, result.newPrimary)
                     }
                   }}
                 >

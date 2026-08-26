@@ -105,10 +105,16 @@ export async function writeFile(filePath: string, content: string): Promise<void
   await fs.writeFile(filePath, content, 'utf-8')
 }
 
+function activeWriteDir(): string | null {
+  // The directory where new files are created — primary vault, or first active overlay
+  return vaultPath ?? overlayPaths[0] ?? null
+}
+
 export async function createFile(name: string): Promise<string> {
-  if (!vaultPath) throw new Error('No vault open')
+  const dir = activeWriteDir()
+  if (!dir) throw new Error('No vault open')
   const safeName = name.endsWith('.md') ? name : `${name}.md`
-  const filePath = path.join(vaultPath, safeName)
+  const filePath = path.join(dir, safeName)
   const existing = await findExistingFileCaseInsensitive(safeName)
   if (existing) return existing
   await fs.writeFile(filePath, '', { encoding: 'utf-8', flag: 'wx' })
@@ -116,9 +122,12 @@ export async function createFile(name: string): Promise<string> {
 }
 
 export async function renameFile(oldPath: string, newName: string): Promise<string> {
-  if (!vaultPath) throw new Error('No vault open')
+  const dir = activeWriteDir()
+  if (!dir) throw new Error('No vault open')
   const safeName = newName.endsWith('.md') ? newName : `${newName}.md`
-  const newPath = path.join(vaultPath, safeName)
+  // Rename stays in the same directory as the original file
+  const fileDir = path.dirname(oldPath)
+  const newPath = path.join(fileDir, safeName)
   if (newPath.toLowerCase() !== oldPath.toLowerCase()) {
     const existing = await findExistingFileCaseInsensitive(safeName)
     if (existing) throw new Error(`A note named "${newName}" already exists`)
@@ -128,13 +137,16 @@ export async function renameFile(oldPath: string, newName: string): Promise<stri
 }
 
 async function findExistingFileCaseInsensitive(filename: string): Promise<string | null> {
-  if (!vaultPath) return null
+  const dirs = activeDirs()
+  if (!dirs.length) return null
   const lower = filename.toLowerCase()
-  try {
-    const entries = await fs.readdir(vaultPath)
-    const match = entries.find(e => e.toLowerCase() === lower)
-    if (match) return path.join(vaultPath, match)
-  } catch { /* ignore */ }
+  for (const dir of dirs) {
+    try {
+      const entries = await fs.readdir(dir)
+      const match = entries.find(e => e.toLowerCase() === lower)
+      if (match) return path.join(dir, match)
+    } catch { /* ignore */ }
+  }
   return null
 }
 

@@ -103,19 +103,25 @@ function registerIPC(win: BrowserWindow): void {
   ipcMain.handle('vault:setOverlayMode', async (_e, enabled: boolean) => {
     store.set('overlayMode', enabled)
     setOverlayModeActive(enabled)
-    const primary = getVaultPath()
+    let primary = getVaultPath()
     if (!enabled) {
-      // Collapse back to primary vault only
+      // Collapse back to primary vault; if primary was cleared, promote first overlay path
+      if (!primary) {
+        const overlayPaths = (store.get('overlayPaths') as string[] | undefined) ?? []
+        primary = overlayPaths[0] ?? null
+        setVaultPath(primary)
+        if (primary) store.set('vaultPath', primary)
+      }
       setOverlayPaths([])
       store.set('overlayPaths', [])
     } else {
-      // Start with just primary; user checks additional vaults from the UI
+      // Start with just primary; user activates additional vaults from the UI
       const initialPaths = primary ? [primary] : []
       setOverlayPaths(initialPaths)
       store.set('overlayPaths', initialPaths)
     }
     startWatcher(win)
-    return { files: await listFiles() }
+    return { files: await listFiles(), newPrimary: getVaultPath() }
   })
 
   ipcMain.handle('vault:toggleOverlayPath', async (_e, vaultDir: string) => {
@@ -125,8 +131,26 @@ function registerIPC(win: BrowserWindow): void {
     const newPaths = isActive ? current.filter(p => p !== vaultDir) : [...current, vaultDir]
     setOverlayPaths(newPaths)
     store.set('overlayPaths', newPaths)
+
+    let newPrimary = primary
+    if (isActive && vaultDir === primary) {
+      // Primary was deselected — transfer to first remaining active vault (or null)
+      newPrimary = newPaths[0] ?? null
+      setVaultPath(newPrimary)
+      if (newPrimary) store.set('vaultPath', newPrimary)
+    } else if (!isActive && !primary) {
+      // No primary yet — the newly activated vault becomes primary
+      newPrimary = vaultDir
+      setVaultPath(newPrimary)
+      store.set('vaultPath', newPrimary)
+    }
+
     startWatcher(win)
-    return { files: await listFiles(), deactivatedPath: isActive ? vaultDir : undefined }
+    return {
+      files: await listFiles(),
+      deactivatedPath: isActive ? vaultDir : undefined,
+      newPrimary
+    }
   })
 
   ipcMain.handle('vault:getPath', () => getVaultPath())

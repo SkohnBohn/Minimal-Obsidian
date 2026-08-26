@@ -176,11 +176,13 @@ export default function App() {
       .forEach(t => handleCloseTab(t.id))
   }
 
-  const handleOverlayModeChange = useCallback((enabled: boolean, files: FileEntry[]) => {
+  const handleOverlayModeChange = useCallback((enabled: boolean, files: FileEntry[], newPrimary?: string | null) => {
     setOverlayMode(enabled)
     if (!enabled) {
-      // Deactivate all non-primary vaults — close their tabs
-      const primary = vaultPathRef.current
+      // Update primary if it was promoted from an overlay path
+      if (newPrimary !== undefined) vaultPathRef.current = newPrimary ?? ''
+      // Close tabs that don't belong to the new primary
+      const primary = newPrimary ?? vaultPathRef.current
       tabsRef.current
         .filter(t => t.path && !t.path.startsWith(primary + '/') && !t.path.startsWith(primary + '\\') && t.path !== primary)
         .forEach(t => handleCloseTab(t.id))
@@ -192,11 +194,12 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleVaultToggle = useCallback((vaultPath: string, files: FileEntry[], deactivatedPath?: string) => {
+  const handleVaultToggle = useCallback((vaultPath: string, files: FileEntry[], deactivatedPath?: string, newPrimary?: string | null) => {
     setOverlayPaths(prev =>
       prev.includes(vaultPath) ? prev.filter(p => p !== vaultPath) : [...prev, vaultPath]
     )
     if (deactivatedPath) closeTabsFromDir(deactivatedPath)
+    if (newPrimary !== undefined) vaultPathRef.current = newPrimary ?? ''
     setFiles(files)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -45,9 +45,9 @@ const api = {
     links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
     getOverlayState: (): Promise<{ overlayMode: boolean; overlayPaths: string[] }> =>
       ipcRenderer.invoke('vault:getOverlayState'),
-    setOverlayMode: (enabled: boolean): Promise<{ files: FileEntry[] }> =>
+    setOverlayMode: (enabled: boolean): Promise<{ files: FileEntry[]; newPrimary?: string | null }> =>
       ipcRenderer.invoke('vault:setOverlayMode', enabled),
-    toggleOverlayPath: (vaultDir: string): Promise<{ files: FileEntry[]; deactivatedPath?: string }> =>
+    toggleOverlayPath: (vaultDir: string): Promise<{ files: FileEntry[]; deactivatedPath?: string; newPrimary?: string | null }> =>
       ipcRenderer.invoke('vault:toggleOverlayPath', vaultDir),
     clearVault: (): Promise<{ files: FileEntry[] }> =>
       ipcRenderer.invoke('vault:clearVault'),
