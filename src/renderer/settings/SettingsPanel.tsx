@@ -34,7 +34,13 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
   const [pathInput, setPathInput] = useState('')
   const [pathError, setPathError] = useState<string | null>(null)
   const [addingVault, setAddingVault] = useState(false)
+  // Local shadow state for immediate checkbox feedback while async IPC is in flight
+  const [localOverlayMode, setLocalOverlayMode] = useState(overlayMode)
+  const [localOverlayPaths, setLocalOverlayPaths] = useState(overlayPaths)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setLocalOverlayMode(overlayMode) }, [overlayMode])
+  useEffect(() => { setLocalOverlayPaths(overlayPaths) }, [overlayPaths])
 
   useEffect(() => {
     window.api.settings.get('includeSources').then(v => {
@@ -146,10 +152,12 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
       <label className="settings-row">
         <input
           type="checkbox"
-          checked={overlayMode}
+          checked={localOverlayMode}
           onChange={async e => {
-            const result = await window.api.vault.setOverlayMode(e.target.checked)
-            onOverlayModeChange(e.target.checked, result.files)
+            const checked = e.target.checked
+            setLocalOverlayMode(checked)
+            const result = await window.api.vault.setOverlayMode(checked)
+            onOverlayModeChange(checked, result.files)
           }}
         />
         overlaying vaults
@@ -159,19 +167,23 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
         <div className="settings-vault-list">
           {savedVaults.map(p => {
             const isPrimary = p === currentPath
-            const isOverlayActive = overlayPaths.includes(p)
+            const isOverlayActive = localOverlayPaths.includes(p)
             return (
               <div
                 key={p}
-                className={`settings-vault-item${(!overlayMode && isPrimary) || (overlayMode && isOverlayActive) ? ' active' : ''}`}
+                className={`settings-vault-item${(!localOverlayMode && isPrimary) || (localOverlayMode && isOverlayActive) ? ' active' : ''}`}
               >
-                {overlayMode && (
+                {localOverlayMode && (
                   <input
                     type="checkbox"
                     className="settings-vault-item-check"
                     checked={isOverlayActive}
                     disabled={isPrimary}
                     onChange={async () => {
+                      const nextPaths = isOverlayActive
+                        ? localOverlayPaths.filter(x => x !== p)
+                        : [...localOverlayPaths, p]
+                      setLocalOverlayPaths(nextPaths)
                       const result = await window.api.vault.toggleOverlayPath(p)
                       onVaultToggle(p, result.files, result.deactivatedPath)
                     }}
@@ -180,8 +192,8 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
                 <button
                   className="settings-vault-item-name"
                   title={p}
-                  onClick={() => { if (!overlayMode) switchVault(p) }}
-                  style={overlayMode ? { cursor: 'default' } : undefined}
+                  onClick={() => { if (!localOverlayMode) switchVault(p) }}
+                  style={localOverlayMode ? { cursor: 'default' } : undefined}
                 >
                   {basename(p)}
                 </button>
