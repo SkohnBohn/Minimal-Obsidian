@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { EditorView } from '@codemirror/view'
 import { setSearchQuery, findNext, SearchQuery } from '@codemirror/search'
+import { setFindQuery } from './findHighlight'
 
 interface Props {
   view: EditorView | null
@@ -50,10 +51,13 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
     inputRef.current?.select()
   }, [])
 
-  // CodeMirror highlight for note tabs
+  // CodeMirror: setSearchQuery drives findNext navigation; setFindQuery drives our highlight plugin
   useEffect(() => {
     if (!view) return
-    view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: query })) })
+    view.dispatch({ effects: [
+      setSearchQuery.of(new SearchQuery({ search: query })),
+      setFindQuery.of(query),
+    ]})
   }, [query, view])
 
   // CSS Custom Highlight API for non-editor tabs — no focus theft
@@ -65,7 +69,10 @@ export default function FindBar({ view, query, onQuery, onClose }: Props) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      view?.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: '' })) })
+      view?.dispatch({ effects: [
+        setSearchQuery.of(new SearchQuery({ search: '' })),
+        setFindQuery.of(''),
+      ]})
       clearPageHighlight()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

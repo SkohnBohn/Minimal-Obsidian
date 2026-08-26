@@ -9,6 +9,7 @@ import { markdownDecorationsPlugin } from './markdownDecorations'
 import { imageEmbedExt } from './imageEmbedExt'
 import { imagePasteExt } from './imagePasteExt'
 import { insertFootnoteRef, addFootnoteDef, footnoteEnterCommand, footnoteTooltipExt } from './footnoteExt'
+import { findHighlightExt } from './findHighlight'
 import type { Tab } from '../tabs/useTabs'
 
 interface EditorProps {
@@ -108,6 +109,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
       imageEmbedExt,
       imagePasteExt,
       markdownDecorationsPlugin,
+      findHighlightExt,
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
           onChange(tabId, update.state.doc.toString(), update.state, update.view.scrollDOM.scrollTop)
