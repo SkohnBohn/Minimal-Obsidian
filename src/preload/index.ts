@@ -49,6 +49,8 @@ const api = {
       ipcRenderer.invoke('vault:setOverlayMode', enabled),
     toggleOverlayPath: (vaultDir: string): Promise<{ files: FileEntry[]; deactivatedPath?: string }> =>
       ipcRenderer.invoke('vault:toggleOverlayPath', vaultDir),
+    clearVault: (): Promise<{ files: FileEntry[] }> =>
+      ipcRenderer.invoke('vault:clearVault'),
     onChange: (cb: (event: VaultChangeEvent) => void) => {
       const handler = (_: unknown, event: VaultChangeEvent) => cb(event)
       ipcRenderer.on('vault:changed', handler)

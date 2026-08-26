@@ -7,6 +7,7 @@ interface FileEntry { name: string; path: string; mtime: number }
 
 interface Props {
   onVaultSet: (files: FileEntry[], newPath: string) => void
+  onVaultClear: () => void
   overlayMode: boolean
   overlayPaths: string[]
   onOverlayModeChange: (enabled: boolean, files: FileEntry[]) => void
@@ -26,7 +27,7 @@ function basename(p: string) {
   return p.replace(/\\/g, '/').split('/').filter(Boolean).pop() ?? p
 }
 
-export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, onOverlayModeChange, onVaultToggle, keyboardOnlyTabs, onKeyboardOnlyTabsChange, hideRail, onHideRailChange }: Props) {
+export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, overlayPaths, onOverlayModeChange, onVaultToggle, keyboardOnlyTabs, onKeyboardOnlyTabsChange, hideRail, onHideRailChange }: Props) {
   const [includeSources, setIncludeSources] = useState(true)
   const [theme, setTheme] = useState<Theme>('solace')
   const [currentPath, setCurrentPath] = useState<string | null>(null)
@@ -176,8 +177,15 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
                   title={p}
                   onClick={async () => {
                     if (!localOverlayMode) {
-                      switchVault(p)
-                    } else if (!isPrimary) {
+                      if (isPrimary) {
+                        // Deselect the active vault
+                        setCurrentPath(null)
+                        await window.api.vault.clearVault()
+                        onVaultClear()
+                      } else {
+                        switchVault(p)
+                      }
+                    } else {
                       const nextPaths = isOverlayActive
                         ? localOverlayPaths.filter(x => x !== p)
                         : [...localOverlayPaths, p]

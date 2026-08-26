@@ -11,10 +11,11 @@ export interface FileEntry {
 }
 
 let vaultPath: string | null = null
-let overlayPaths: string[] = []  // all active vault dirs; always includes vaultPath when set
+let overlayPaths: string[] = []  // active vault dirs in overlay mode
+let overlayModeActive = false
 let watcher: FSWatcher | null = null
 
-export function setVaultPath(p: string): void {
+export function setVaultPath(p: string | null): void {
   vaultPath = p
 }
 
@@ -30,8 +31,13 @@ export function getOverlayPaths(): string[] {
   return overlayPaths
 }
 
+export function setOverlayModeActive(enabled: boolean): void {
+  overlayModeActive = enabled
+}
+
 function activeDirs(): string[] {
-  if (overlayPaths.length > 0) return overlayPaths
+  // In overlay mode return the selected set (may be empty — user deselected all)
+  if (overlayModeActive) return overlayPaths
   return vaultPath ? [vaultPath] : []
 }
 

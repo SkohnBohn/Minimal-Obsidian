@@ -201,6 +201,20 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const handleVaultClear = useCallback(() => {
+    vaultPathRef.current = ''
+    setOverlayMode(false)
+    setOverlayPaths([])
+    // Close all note tabs
+    tabsRef.current
+      .filter(t => t.type === 'note')
+      .forEach(t => handleCloseTab(t.id))
+    setFiles([])
+    setSearchQuery('')
+    setSearchResults([])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const handleVaultSet = useCallback(async (files: FileEntry[], newPath: string) => {
     const oldPath = vaultPathRef.current
     if (oldPath) {
@@ -392,6 +406,7 @@ export default function App() {
             {inlineSettings ? (
               <SettingsPanel
                 onVaultSet={handleVaultSet}
+                onVaultClear={handleVaultClear}
                 overlayMode={overlayMode}
                 overlayPaths={overlayPaths}
                 onOverlayModeChange={handleOverlayModeChange}
@@ -412,6 +427,7 @@ export default function App() {
             ) : activeTab?.type === 'settings' ? (
               <SettingsPanel
                 onVaultSet={handleVaultSet}
+                onVaultClear={handleVaultClear}
                 overlayMode={overlayMode}
                 overlayPaths={overlayPaths}
                 onOverlayModeChange={handleOverlayModeChange}

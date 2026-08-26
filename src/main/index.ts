@@ -7,6 +7,7 @@ import {
   getVaultPath,
   setOverlayPaths,
   getOverlayPaths,
+  setOverlayModeActive,
   listFiles,
   readFile,
   writeFile,
@@ -14,7 +15,8 @@ import {
   renameFile,
   saveAsset,
   findAsset,
-  startWatcher
+  startWatcher,
+  stopWatcher
 } from './vaultManager'
 import { search } from './searchIndex'
 import { buildLinkGraph } from './linkParser'
@@ -88,8 +90,19 @@ function registerIPC(win: BrowserWindow): void {
     overlayPaths: (store.get('overlayPaths') ?? []) as string[]
   }))
 
+  ipcMain.handle('vault:clearVault', async () => {
+    setVaultPath(null)
+    setOverlayPaths([])
+    setOverlayModeActive(false)
+    store.set('overlayMode', false)
+    store.set('overlayPaths', [])
+    stopWatcher()
+    return { files: [] }
+  })
+
   ipcMain.handle('vault:setOverlayMode', async (_e, enabled: boolean) => {
     store.set('overlayMode', enabled)
+    setOverlayModeActive(enabled)
     const primary = getVaultPath()
     if (!enabled) {
       // Collapse back to primary vault only
@@ -107,8 +120,6 @@ function registerIPC(win: BrowserWindow): void {
 
   ipcMain.handle('vault:toggleOverlayPath', async (_e, vaultDir: string) => {
     const primary = getVaultPath()
-    // Primary vault cannot be toggled off
-    if (vaultDir === primary) return { files: await listFiles() }
     const current = (store.get('overlayPaths') as string[] | undefined) ?? (primary ? [primary] : [])
     const isActive = current.includes(vaultDir)
     const newPaths = isActive ? current.filter(p => p !== vaultDir) : [...current, vaultDir]
@@ -224,6 +235,7 @@ app.whenReady().then(() => {
     const savedOverlayPaths = store.get('overlayPaths') as string[] | undefined
     if (overlayMode && savedOverlayPaths?.length) {
       setOverlayPaths(savedOverlayPaths)
+      setOverlayModeActive(true)
     }
     startWatcher(win)
   }
