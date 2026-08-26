@@ -663,14 +663,15 @@ input {
   gap: 6px;
 }
 
-.settings-vault-item-check {
+.settings-vault-primary-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--link);
+  margin-right: 6px;
+  vertical-align: middle;
   flex-shrink: 0;
-  cursor: pointer;
-}
-
-.settings-vault-item-check:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 
 .settings-vault-item-name {

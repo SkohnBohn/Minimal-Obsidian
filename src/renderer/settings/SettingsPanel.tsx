@@ -168,33 +168,26 @@ export default function SettingsPanel({ onVaultSet, overlayMode, overlayPaths, o
           {savedVaults.map(p => {
             const isPrimary = p === currentPath
             const isOverlayActive = localOverlayPaths.includes(p)
+            const isActive = localOverlayMode ? isOverlayActive : isPrimary
             return (
-              <div
-                key={p}
-                className={`settings-vault-item${(!localOverlayMode && isPrimary) || (localOverlayMode && isOverlayActive) ? ' active' : ''}`}
-              >
-                {localOverlayMode && (
-                  <input
-                    type="checkbox"
-                    className="settings-vault-item-check"
-                    checked={isOverlayActive}
-                    disabled={isPrimary}
-                    onChange={async () => {
+              <div key={p} className={`settings-vault-item${isActive ? ' active' : ''}`}>
+                <button
+                  className="settings-vault-item-name"
+                  title={p}
+                  onClick={async () => {
+                    if (!localOverlayMode) {
+                      switchVault(p)
+                    } else if (!isPrimary) {
                       const nextPaths = isOverlayActive
                         ? localOverlayPaths.filter(x => x !== p)
                         : [...localOverlayPaths, p]
                       setLocalOverlayPaths(nextPaths)
                       const result = await window.api.vault.toggleOverlayPath(p)
                       onVaultToggle(p, result.files, result.deactivatedPath)
-                    }}
-                  />
-                )}
-                <button
-                  className="settings-vault-item-name"
-                  title={p}
-                  onClick={() => { if (!localOverlayMode) switchVault(p) }}
-                  style={localOverlayMode ? { cursor: 'default' } : undefined}
+                    }
+                  }}
                 >
+                  {isPrimary && <span className="settings-vault-primary-dot" />}
                   {basename(p)}
                 </button>
                 <button
