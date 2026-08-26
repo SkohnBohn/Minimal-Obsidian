@@ -55,14 +55,20 @@ export async function listFiles(): Promise<FileEntry[]> {
   for (const dir of dirs) {
     try {
       const entries = await fs.readdir(dir, { withFileTypes: true })
-      for (const e of entries) {
-        if (!e.isFile() || !e.name.endsWith('.md')) continue
-        const filePath = path.join(dir, e.name)
-        if (seen.has(filePath)) continue
-        seen.add(filePath)
-        const stat = await fs.stat(filePath)
-        files.push({ name: e.name.replace(/\.md$/, ''), path: filePath, mtime: stat.mtimeMs })
-      }
+      const mdEntries = entries.filter(e => e.isFile() && e.name.endsWith('.md'))
+      // Stat all files in this dir in parallel instead of sequentially
+      const results = await Promise.all(
+        mdEntries.map(async e => {
+          const filePath = path.join(dir, e.name)
+          if (seen.has(filePath)) return null
+          seen.add(filePath)
+          try {
+            const stat = await fs.stat(filePath)
+            return { name: e.name.replace(/\.md$/, ''), path: filePath, mtime: stat.mtimeMs } as FileEntry
+          } catch { return null }
+        })
+      )
+      for (const r of results) if (r) files.push(r)
     } catch { /* skip unreadable vault dir */ }
   }
 
@@ -156,12 +162,14 @@ async function findExistingFileCaseInsensitive(filename: string): Promise<string
 
 async function indexAll(): Promise<void> {
   const files = await listFiles()
-  for (const f of files) {
-    try {
-      const content = await fs.readFile(f.path, 'utf-8')
-      indexFile(f.path, f.name, content)
-    } catch { /* skip */ }
-  }
+  await Promise.all(
+    files.map(async f => {
+      try {
+        const content = await fs.readFile(f.path, 'utf-8')
+        indexFile(f.path, f.name, content)
+      } catch { /* skip */ }
+    })
+  )
 }
 
 export function startWatcher(win: BrowserWindow): void {
@@ -206,4 +214,37 @@ export function startWatcher(win: BrowserWindow): void {
 export function stopWatcher(): void {
   watcher?.close()
   watcher = null
+}
+
+// Incrementally add a vault dir to the existing watcher without tearing it down.
+// Falls back to a full startWatcher if no watcher exists yet.
+export function addVaultToWatcher(dir: string, win: BrowserWindow): void {
+  if (!watcher) { startWatcher(win); return }
+  watcher.add(path.join(dir, '**/*.md'))
+  // Index new vault's files in the background — does not block IPC response
+  fs.readdir(dir, { withFileTypes: true })
+    .then(entries => Promise.all(
+      entries
+        .filter(e => e.isFile() && e.name.endsWith('.md'))
+        .map(async e => {
+          const filePath = path.join(dir, e.name)
+          const content = await fs.readFile(filePath, 'utf-8').catch(() => '')
+          indexFile(filePath, e.name.replace(/\.md$/, ''), content)
+        })
+    ))
+    .catch(() => {})
+}
+
+// Incrementally remove a vault dir from the existing watcher without tearing it down.
+export function removeVaultFromWatcher(dir: string): void {
+  if (!watcher) return
+  watcher.unwatch(path.join(dir, '**/*.md'))
+  // Remove this vault's files from the search index in the background
+  fs.readdir(dir, { withFileTypes: true })
+    .then(entries => {
+      for (const e of entries) {
+        if (e.isFile() && e.name.endsWith('.md')) removeFile(path.join(dir, e.name))
+      }
+    })
+    .catch(() => {})
 }

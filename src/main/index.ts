@@ -17,7 +17,9 @@ import {
   saveAsset,
   findAsset,
   startWatcher,
-  stopWatcher
+  stopWatcher,
+  addVaultToWatcher,
+  removeVaultFromWatcher
 } from './vaultManager'
 import { search } from './searchIndex'
 import { buildLinkGraph } from './linkParser'
@@ -151,7 +153,13 @@ function registerIPC(win: BrowserWindow): void {
       store.set('vaultPath', newPrimary)
     }
 
-    startWatcher(win)
+    // Incremental watcher update — no teardown/rebuild, just add or remove the one dir
+    if (isActive) {
+      removeVaultFromWatcher(vaultDir)
+    } else {
+      addVaultToWatcher(vaultDir, win)
+    }
+
     return {
       files: await listFiles(),
       deactivatedPath: isActive ? vaultDir : undefined,
