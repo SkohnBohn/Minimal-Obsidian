@@ -56,15 +56,26 @@ export default function App() {
   const vaultPathRef = useRef<string>('')
 
   // ── Persist search state ─────────────────────────────────────────────────
-  useEffect(() => { window.api.settings.set('search.sidebarOpen', showSidebar) }, [showSidebar])
-  useEffect(() => { window.api.settings.set('search.sidebarQuery', searchQuery) }, [searchQuery])
-  useEffect(() => { window.api.settings.set('search.findOpen', showFind) }, [showFind])
-  useEffect(() => { window.api.settings.set('search.findQuery', findQuery) }, [findQuery])
-
-  // showFind resets on every activeTabId change, so we defer its restoration
-  // until the first non-null activeTabId (i.e., after tabs are restored).
+  // Guard: don't save until after the initial load has finished, otherwise the
+  // first-render defaults (false / '') would overwrite the persisted values.
+  const searchStateLoaded = useRef(false)
   const pendingFindOpen = useRef(false)
   const findOpenRestored = useRef(false)
+
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('search.sidebarOpen', showSidebar)
+  }, [showSidebar])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('search.sidebarQuery', searchQuery)
+  }, [searchQuery])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('search.findOpen', showFind)
+  }, [showFind])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('search.findQuery', findQuery)
+  }, [findQuery])
+
+  // showFind resets on every activeTabId change; restore it only after first tab load.
   useEffect(() => { setShowFind(false) }, [activeTabId])
   useEffect(() => {
     if (activeTabId && !findOpenRestored.current) {
@@ -138,6 +149,7 @@ export default function App() {
       }
       pendingFindOpen.current = !!(findOpen)
       if (findQuery) setFindQuery(findQuery as string)
+      searchStateLoaded.current = true
     })
   }, [])
 
