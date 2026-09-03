@@ -82,7 +82,11 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
       if (e.key === 'ArrowRight') {
         rows[curRow][curCol + 1]?.focus()
       } else if (e.key === 'ArrowLeft') {
-        rows[curRow][curCol - 1]?.focus()
+        if (rows[curRow][curCol - 1]) {
+          rows[curRow][curCol - 1].focus()
+        } else {
+          document.querySelector<HTMLElement>('.sidebar-input')?.focus()
+        }
       } else if (e.key === 'ArrowDown') {
         const nextRow = rows[curRow + 1]
         if (nextRow) nextRow[Math.min(curCol, nextRow.length - 1)]?.focus()

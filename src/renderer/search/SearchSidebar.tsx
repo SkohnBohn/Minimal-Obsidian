@@ -51,6 +51,17 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           if (r) onOpenRef.current(r.path, r.name)
           return i
         })
+      } else if (e.key === 'ArrowRight' && document.activeElement === inputRef.current) {
+        const inp = inputRef.current!
+        const atEnd = inp.selectionStart === inp.value.length &&
+                      inp.selectionStart === inp.selectionEnd
+        if (atEnd) {
+          e.preventDefault()
+          const first = document.querySelector<HTMLElement>(
+            '.settings-panel button, .settings-panel input[type="checkbox"]'
+          )
+          first?.focus()
+        }
       }
     }
     window.addEventListener('keydown', handler)
