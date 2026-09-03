@@ -163,7 +163,8 @@ input {
   border-bottom: 1px solid transparent;
 }
 
-.sidebar-result:hover {
+.sidebar-result:hover,
+.sidebar-result[data-selected="true"] {
   background: var(--bg);
 }
 

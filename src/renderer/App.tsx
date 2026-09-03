@@ -388,7 +388,11 @@ export default function App() {
             query={searchQuery}
             results={searchResults}
             onQuery={handleSearchQuery}
-            onOpen={(path, name) => { handleOpenFile(path, name); setShowSidebar(false) }}
+            onOpen={(path, name) => {
+              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name)
+              else openTab(path, name)
+              setShowSidebar(false)
+            }}
           />
         )}
 
