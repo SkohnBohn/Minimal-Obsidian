@@ -178,48 +178,59 @@ const wikilinkCompletion = autocompletion({
   ]
 })
 
-// ── Input rule: [[ auto-close and selection wrapping ─────────────────────
+// ── Bracket handling via keydown ──────────────────────────────────────────
 //
-// Uses inputHandler (triggered by actual text input, not keydown) so it works
-// on all keyboard layouts including ones where [ requires AltGr.
+// Must use domEventHandlers({keydown}) — NOT inputHandler or keymap — because:
+//   - On Mac, Option+key (e.g. Option+5 → "[") goes through the browser's
+//     composition/IME pipeline, bypassing inputHandler entirely.
+//   - CM6 keymaps normalize Option+key as "Alt-[", so `key: '['` never matches.
+//   - keydown always fires first; event.key gives the logical character ("[")
+//     regardless of which physical keys were pressed; preventDefault() stops
+//     the browser from inserting anything after we handle it.
 //
-// Four cases handled:
-//   1. [ with no selection, no prior [  → fall through (normal insert)
-//   2. [ with no selection, prior char [ → insert []] and place cursor inside
-//   3. [ with selection, no prior [     → insert [+text, re-select text so
-//                                         the next [ can still see it
-//   4. [ with selection, prior char [   → complete: [[text]] cursor after
+// Four cases:
+//   1. [ no selection, no prior [  → fall through (let browser insert normally)
+//   2. [ no selection, prior [     → [[]] with cursor inside
+//   3. [ with selection, no prior [ → insert [text, re-select text (next [ sees it)
+//   4. [ with selection, prior [   → [[text]] cursor after
 
-const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
-  if (insert !== '[') return false
+const doubleBracketRule = EditorView.domEventHandlers({
+  keydown(event, view) {
+    if (event.key !== '[') return false
 
-  const hasSelection = from !== to
-  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
-  const prevIsBracket = before === '['
+    const sel = view.state.selection.main
+    const before = view.state.sliceDoc(Math.max(0, sel.from - 1), sel.from)
+    const prevIsBracket = before === '['
 
-  if (!hasSelection && !prevIsBracket) return false  // case 1: normal [
+    if (sel.empty) {
+      if (!prevIsBracket) return false  // case 1: normal [
+      // case 2: second [ with no selection → [[]] cursor inside
+      view.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: '[]]' },
+        selection: { anchor: sel.from + 1 }
+      })
+      event.preventDefault()
+      return true
+    }
 
-  if (!hasSelection && prevIsBracket) {              // case 2: second [ no selection
-    view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
+    const selectedText = view.state.sliceDoc(sel.from, sel.to)
+
+    if (prevIsBracket) {
+      // case 4: second [ with selection → [[selectedText]]
+      view.dispatch({
+        changes: { from: sel.from - 1, to: sel.to, insert: `[[${selectedText}]]` },
+        selection: { anchor: sel.from - 1 + 2 + selectedText.length + 2 }
+      })
+    } else {
+      // case 3: first [ with selection → insert [, keep text selected for next [
+      view.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: '[' + selectedText },
+        selection: { anchor: sel.from + 1, head: sel.from + 1 + selectedText.length }
+      })
+    }
+    event.preventDefault()
     return true
   }
-
-  const selectedText = view.state.sliceDoc(from, to)
-
-  if (hasSelection && prevIsBracket) {              // case 4: second [ with selection
-    view.dispatch({
-      changes: { from: from - 1, to, insert: `[[${selectedText}]]` },
-      selection: { anchor: from - 1 + 2 + selectedText.length + 2 }
-    })
-    return true
-  }
-
-  // case 3: first [ with selection — insert [ and re-select the original text
-  view.dispatch({
-    changes: { from, to, insert: '[' + selectedText },
-    selection: { anchor: from + 1, head: from + 1 + selectedText.length }
-  })
-  return true
 })
 
 // ── Public factory ─────────────────────────────────────────────────────────
