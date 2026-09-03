@@ -178,14 +178,77 @@ const wikilinkCompletion = autocompletion({
   ]
 })
 
-// ── Input rule: second [ closes with ]] ───────────────────────────────────
+// ── [[ auto-close + selection wrapping ───────────────────────────────────
+//
+// Strategy: snapshot in keydown, react in updateListener.
+//
+// Why not inputHandler / keymap / keydown+preventDefault:
+//   All previous attempts failed because on Mac, Option+key input goes through
+//   the browser's IME/composition pipeline. keymap gets "Alt-[" (no match),
+//   inputHandler may be bypassed entirely, and preventDefault on keydown is
+//   ignored for Option combos in some Electron/browser configurations.
+//
+// This approach never fights the browser:
+//   keydown      → snapshot selected text BEFORE first [ is inserted.
+//                  _pendingWikiText: null = nothing pending,
+//                                   ''   = [ pressed with no selection (→ [[]]),
+//                                   str  = [ pressed with selection (→ [[str]])
+//                  Second [ keydown keeps the stored value (sel is empty by then).
+//                  Any other key clears it.
+//   updateListener → after EVERY doc change, check whether [[ just appeared at
+//                  the cursor. If _pendingWikiText is set, replace [[ with the
+//                  right content. Dispatch is deferred (Promise microtask) to
+//                  avoid nested-dispatch errors.
 
-const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
-  if (insert !== '[') return false
-  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
-  if (before !== '[') return false
-  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
-  return true
+let _pendingWikiText: string | null = null
+
+const bracketSelectionCapture = EditorView.domEventHandlers({
+  keydown(event, view) {
+    if (event.key !== '[') {
+      _pendingWikiText = null
+      return false
+    }
+    const sel = view.state.selection.main
+    if (!sel.empty) {
+      _pendingWikiText = view.state.sliceDoc(sel.from, sel.to)
+    } else if (_pendingWikiText === null) {
+      _pendingWikiText = ''   // first [ with no selection
+    }
+    // If already set (non-null), don't overwrite — preserves stored text
+    // when the second [ is pressed and sel is empty
+    return false  // always fall through; never prevent browser input
+  }
+})
+
+const doubleBracketRule = EditorView.updateListener.of(update => {
+  if (!update.docChanged || _pendingWikiText === null) return
+
+  const state = update.state
+  const sel = state.selection.main
+  if (!sel.empty) return
+
+  const pos = sel.from
+  if (pos < 2 || state.sliceDoc(pos - 2, pos) !== '[[') return
+
+  const text = _pendingWikiText
+  _pendingWikiText = null
+
+  // Defer to avoid dispatching inside an updateListener
+  Promise.resolve().then(() => {
+    if (text === '') {
+      // [[]] — cursor between the brackets (pos is already after [[)
+      update.view.dispatch({
+        changes: { from: pos - 2, to: pos, insert: '[[]]' },
+        selection: { anchor: pos }   // pos - 2 + 2 = pos, inside [[]]
+      })
+    } else {
+      // [[selectedText]] — cursor after closing ]]
+      update.view.dispatch({
+        changes: { from: pos - 2, to: pos, insert: `[[${text}]]` },
+        selection: { anchor: pos + text.length + 2 }   // pos - 2 + 2 + len + 2
+      })
+    }
+  })
 })
 
 // ── Public factory ─────────────────────────────────────────────────────────
@@ -194,6 +257,7 @@ export function wikilinkExtension(opts: WikiLinkExtOptions) {
   return [
     noteNamesField.init(() => opts.noteNames),
     wikilinkRangesField,
+    bracketSelectionCapture,
     doubleBracketRule,
     wikilinkDecorationPlugin,
     makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),
