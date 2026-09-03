@@ -77,7 +77,7 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
         const c = active ? rows[r].indexOf(active) : -1
         if (c !== -1) { curRow = r; curCol = c; break }
       }
-      if (curRow === -1) { rows[0]?.[0]?.focus(); return }
+      if (curRow === -1) return  // focus is not inside this panel — do nothing
 
       if (e.key === 'ArrowRight') {
         rows[curRow][curCol + 1]?.focus()

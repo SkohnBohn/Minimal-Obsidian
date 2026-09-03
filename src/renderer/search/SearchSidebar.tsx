@@ -37,6 +37,12 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
   // Global keydown handler — works regardless of focus
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const active = document.activeElement
+      // Only handle navigation keys when the search input is focused
+      if (active !== inputRef.current) {
+        // Still allow ArrowRight from settings → search (handled below)
+        return
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         setSelectedIndex(i => Math.min(i + 1, resultsRef.current.length - 1))
@@ -51,7 +57,7 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           if (r) onOpenRef.current(r.path, r.name)
           return i
         })
-      } else if (e.key === 'ArrowRight' && document.activeElement === inputRef.current) {
+      } else if (e.key === 'ArrowRight' && active === inputRef.current) {
         const inp = inputRef.current!
         const atEnd = inp.selectionStart === inp.value.length &&
                       inp.selectionStart === inp.selectionEnd
