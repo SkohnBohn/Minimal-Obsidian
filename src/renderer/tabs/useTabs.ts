@@ -151,7 +151,7 @@ export function useTabs() {
   }, [activateTab, openTab])
 
   // Navigate within the current tab (pushes history)
-  const navigateInTab = useCallback(async (tabId: string, name: string) => {
+  const navigateInTab = useCallback(async (tabId: string, name: string, forceInPlace = false) => {
     const files = await window.api.vault.list()
     // Case-insensitive match to avoid creating duplicate files on macOS (HFS+/APFS).
     const nameLower = name.toLowerCase()
@@ -166,7 +166,7 @@ export function useTabs() {
     // If another tab already shows this file, switch to it and record where we came from
     // so goBack can return to this tab.
     const otherTab = tabsRef.current.find(t => t.id !== tabId && t.path === targetPath)
-    if (otherTab) {
+    if (otherTab && !forceInPlace) {
       setTabs(prev => prev.map(t => t.id === otherTab.id ? { ...t, cameFrom: tabId } : t))
       activateTab(otherTab.id)
       return

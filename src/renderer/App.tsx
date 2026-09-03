@@ -389,7 +389,7 @@ export default function App() {
             results={searchResults}
             onQuery={handleSearchQuery}
             onOpen={(path, name) => {
-              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name)
+              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name, true)
               else openTab(path, name)
               setShowSidebar(false)
             }}
