@@ -49,22 +49,46 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
     first?.focus()
     const handler = (e: KeyboardEvent) => {
       const active = document.activeElement as HTMLElement | null
-      // Let the vault path text input handle its own keys
       if (active?.tagName === 'INPUT' && (active as HTMLInputElement).type === 'text') return
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input[type="checkbox"]'
-        ))
-        const idx = active ? focusable.indexOf(active) : -1
-        const next = e.key === 'ArrowDown'
-          ? (idx + 1) % focusable.length
-          : (idx - 1 + focusable.length) % focusable.length
-        focusable[next]?.focus()
-      } else if (e.key === 'Enter' && active?.tagName === 'INPUT' &&
-                 (active as HTMLInputElement).type === 'checkbox') {
-        e.preventDefault()
-        active.click()
+      const nav = e.key === 'ArrowDown' || e.key === 'ArrowUp' ||
+                  e.key === 'ArrowLeft' || e.key === 'ArrowRight'
+      const isEnterOnCheckbox = e.key === 'Enter' && active?.tagName === 'INPUT' &&
+                                (active as HTMLInputElement).type === 'checkbox'
+      if (!nav && !isEnterOnCheckbox) return
+      e.preventDefault()
+      if (isEnterOnCheckbox) { active!.click(); return }
+
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input[type="checkbox"]'
+      ))
+
+      // Group into rows by vertical position
+      const rows: HTMLElement[][] = []
+      const rowTops: number[] = []
+      for (const el of focusable) {
+        const top = Math.round(el.getBoundingClientRect().top)
+        const ri = rowTops.findIndex(t => Math.abs(t - top) < 5)
+        if (ri === -1) { rowTops.push(top); rows.push([el]) }
+        else rows[ri].push(el)
+      }
+
+      let curRow = -1, curCol = -1
+      for (let r = 0; r < rows.length; r++) {
+        const c = active ? rows[r].indexOf(active) : -1
+        if (c !== -1) { curRow = r; curCol = c; break }
+      }
+      if (curRow === -1) { rows[0]?.[0]?.focus(); return }
+
+      if (e.key === 'ArrowRight') {
+        rows[curRow][curCol + 1]?.focus()
+      } else if (e.key === 'ArrowLeft') {
+        rows[curRow][curCol - 1]?.focus()
+      } else if (e.key === 'ArrowDown') {
+        const nextRow = rows[curRow + 1]
+        if (nextRow) nextRow[Math.min(curCol, nextRow.length - 1)]?.focus()
+      } else if (e.key === 'ArrowUp') {
+        const prevRow = rows[curRow - 1]
+        if (prevRow) prevRow[Math.min(curCol, prevRow.length - 1)]?.focus()
       }
     }
     window.addEventListener('keydown', handler)
