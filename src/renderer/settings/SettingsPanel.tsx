@@ -39,6 +39,34 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
   const [localOverlayMode, setLocalOverlayMode] = useState(overlayMode)
   const [localOverlayPaths, setLocalOverlayPaths] = useState(overlayPaths)
   const inputRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const handler = (e: KeyboardEvent) => {
+      const active = document.activeElement as HTMLElement | null
+      // Let the vault path text input handle its own keys
+      if (active?.tagName === 'INPUT' && (active as HTMLInputElement).type === 'text') return
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const focusable = Array.from(panel.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input[type="checkbox"]'
+        ))
+        const idx = active ? focusable.indexOf(active) : -1
+        const next = e.key === 'ArrowDown'
+          ? (idx + 1) % focusable.length
+          : (idx - 1 + focusable.length) % focusable.length
+        focusable[next]?.focus()
+      } else if (e.key === 'Enter' && active?.tagName === 'INPUT' &&
+                 (active as HTMLInputElement).type === 'checkbox') {
+        e.preventDefault()
+        active.click()
+      }
+    }
+    panel.addEventListener('keydown', handler)
+    return () => panel.removeEventListener('keydown', handler)
+  }, [])
 
   useEffect(() => { setLocalOverlayMode(overlayMode) }, [overlayMode])
   useEffect(() => { setLocalOverlayPaths(overlayPaths) }, [overlayPaths])
@@ -118,7 +146,7 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
   }
 
   return (
-    <div className="settings-panel">
+    <div ref={panelRef} className="settings-panel">
       <div className="settings-section">theme</div>
       <div className="settings-theme-row">
         {THEMES.map(t => (
