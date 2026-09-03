@@ -44,6 +44,9 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
   useEffect(() => {
     const panel = panelRef.current
     if (!panel) return
+    // Auto-focus first control so arrow keys work immediately
+    const first = panel.querySelector<HTMLElement>('button, input[type="checkbox"]')
+    first?.focus()
     const handler = (e: KeyboardEvent) => {
       const active = document.activeElement as HTMLElement | null
       // Let the vault path text input handle its own keys
@@ -64,8 +67,8 @@ export default function SettingsPanel({ onVaultSet, onVaultClear, overlayMode, o
         active.click()
       }
     }
-    panel.addEventListener('keydown', handler)
-    return () => panel.removeEventListener('keydown', handler)
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
   }, [])
 
   useEffect(() => { setLocalOverlayMode(overlayMode) }, [overlayMode])
