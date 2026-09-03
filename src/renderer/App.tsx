@@ -489,7 +489,7 @@ export default function App() {
                 />
               </>
             ) : (
-              <div className="editor-empty">⌘O to open a note</div>
+              <div className="editor-empty">CMD + O to open a note</div>
             )}
           </div>
         </div>
