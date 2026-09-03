@@ -3,7 +3,8 @@ import {
   ViewPlugin,
   ViewUpdate,
   Decoration,
-  DecorationSet
+  DecorationSet,
+  keymap
 } from '@codemirror/view'
 import { StateField, StateEffect, Range, EditorState } from '@codemirror/state'
 import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
@@ -180,22 +181,27 @@ const wikilinkCompletion = autocompletion({
 
 // ── Input rule: second [ closes with ]] ───────────────────────────────────
 
+// Keymap handles [ when text is selected: wrap immediately as [[selected]]
+const doubleBracketSelectionKeymap = keymap.of([{
+  key: '[',
+  run(view) {
+    const sel = view.state.selection.main
+    if (sel.empty) return false
+    const selectedText = view.state.sliceDoc(sel.from, sel.to)
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: `[[${selectedText}]]` },
+      selection: { anchor: sel.from + selectedText.length + 4 }
+    })
+    return true
+  }
+}])
+
+// inputHandler handles [[ with no selection: produce [[]] with cursor inside
 const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
   if (insert !== '[') return false
   const before = view.state.sliceDoc(Math.max(0, from - 1), from)
   if (before !== '[') return false
-  const sel = view.state.selection.main
-  const hasSelection = !sel.empty
-  if (hasSelection) {
-    const selectedText = view.state.sliceDoc(sel.from, sel.to)
-    // Replace the opening [ (already inserted at from-1) + selection with [[selected]]
-    view.dispatch({
-      changes: { from: from - 1, to: sel.to, insert: `[[${selectedText}]]` },
-      selection: { anchor: from - 1 + selectedText.length + 4 }
-    })
-  } else {
-    view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
-  }
+  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
   return true
 })
 
@@ -205,6 +211,7 @@ export function wikilinkExtension(opts: WikiLinkExtOptions) {
   return [
     noteNamesField.init(() => opts.noteNames),
     wikilinkRangesField,
+    doubleBracketSelectionKeymap,
     doubleBracketRule,
     wikilinkDecorationPlugin,
     makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),
