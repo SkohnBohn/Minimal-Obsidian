@@ -55,7 +55,23 @@ export default function App() {
 
   const vaultPathRef = useRef<string>('')
 
+  // ── Persist search state ─────────────────────────────────────────────────
+  useEffect(() => { window.api.settings.set('search.sidebarOpen', showSidebar) }, [showSidebar])
+  useEffect(() => { window.api.settings.set('search.sidebarQuery', searchQuery) }, [searchQuery])
+  useEffect(() => { window.api.settings.set('search.findOpen', showFind) }, [showFind])
+  useEffect(() => { window.api.settings.set('search.findQuery', findQuery) }, [findQuery])
+
+  // showFind resets on every activeTabId change, so we defer its restoration
+  // until the first non-null activeTabId (i.e., after tabs are restored).
+  const pendingFindOpen = useRef(false)
+  const findOpenRestored = useRef(false)
   useEffect(() => { setShowFind(false) }, [activeTabId])
+  useEffect(() => {
+    if (activeTabId && !findOpenRestored.current) {
+      findOpenRestored.current = true
+      if (pendingFindOpen.current) setShowFind(true)
+    }
+  }, [activeTabId])
 
   // Auto-focus title input for brand-new tabs
   useEffect(() => {
@@ -106,6 +122,22 @@ export default function App() {
     })
     window.api.settings.get('hideRail').then(v => {
       if (v !== undefined) setHideRail(v as boolean)
+    })
+    // Restore search state
+    Promise.all([
+      window.api.settings.get('search.sidebarOpen'),
+      window.api.settings.get('search.sidebarQuery'),
+      window.api.settings.get('search.findOpen'),
+      window.api.settings.get('search.findQuery'),
+    ]).then(([sidebarOpen, sidebarQuery, findOpen, findQuery]) => {
+      if (sidebarOpen) setShowSidebar(true)
+      if (sidebarQuery) {
+        const q = sidebarQuery as string
+        setSearchQuery(q)
+        window.api.search.query(q).then(setSearchResults)
+      }
+      pendingFindOpen.current = !!(findOpen)
+      if (findQuery) setFindQuery(findQuery as string)
     })
   }, [])
 
