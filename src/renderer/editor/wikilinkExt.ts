@@ -3,8 +3,7 @@ import {
   ViewPlugin,
   ViewUpdate,
   Decoration,
-  DecorationSet,
-  keymap
+  DecorationSet
 } from '@codemirror/view'
 import { StateField, StateEffect, Range, EditorState } from '@codemirror/state'
 import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete'
@@ -179,29 +178,47 @@ const wikilinkCompletion = autocompletion({
   ]
 })
 
-// ── Input rule: second [ closes with ]] ───────────────────────────────────
+// ── Input rule: [[ auto-close and selection wrapping ─────────────────────
+//
+// Uses inputHandler (triggered by actual text input, not keydown) so it works
+// on all keyboard layouts including ones where [ requires AltGr.
+//
+// Four cases handled:
+//   1. [ with no selection, no prior [  → fall through (normal insert)
+//   2. [ with no selection, prior char [ → insert []] and place cursor inside
+//   3. [ with selection, no prior [     → insert [+text, re-select text so
+//                                         the next [ can still see it
+//   4. [ with selection, prior char [   → complete: [[text]] cursor after
 
-// Keymap handles [ when text is selected: wrap immediately as [[selected]]
-const doubleBracketSelectionKeymap = keymap.of([{
-  key: '[',
-  run(view) {
-    const sel = view.state.selection.main
-    if (sel.empty) return false
-    const selectedText = view.state.sliceDoc(sel.from, sel.to)
+const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
+  if (insert !== '[') return false
+
+  const hasSelection = from !== to
+  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
+  const prevIsBracket = before === '['
+
+  if (!hasSelection && !prevIsBracket) return false  // case 1: normal [
+
+  if (!hasSelection && prevIsBracket) {              // case 2: second [ no selection
+    view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
+    return true
+  }
+
+  const selectedText = view.state.sliceDoc(from, to)
+
+  if (hasSelection && prevIsBracket) {              // case 4: second [ with selection
     view.dispatch({
-      changes: { from: sel.from, to: sel.to, insert: `[[${selectedText}]]` },
-      selection: { anchor: sel.from + selectedText.length + 4 }
+      changes: { from: from - 1, to, insert: `[[${selectedText}]]` },
+      selection: { anchor: from - 1 + 2 + selectedText.length + 2 }
     })
     return true
   }
-}])
 
-// inputHandler handles [[ with no selection: produce [[]] with cursor inside
-const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
-  if (insert !== '[') return false
-  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
-  if (before !== '[') return false
-  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
+  // case 3: first [ with selection — insert [ and re-select the original text
+  view.dispatch({
+    changes: { from, to, insert: '[' + selectedText },
+    selection: { anchor: from + 1, head: from + 1 + selectedText.length }
+  })
   return true
 })
 
@@ -211,7 +228,6 @@ export function wikilinkExtension(opts: WikiLinkExtOptions) {
   return [
     noteNamesField.init(() => opts.noteNames),
     wikilinkRangesField,
-    doubleBracketSelectionKeymap,
     doubleBracketRule,
     wikilinkDecorationPlugin,
     makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),
