@@ -180,66 +180,75 @@ const wikilinkCompletion = autocompletion({
 
 // ── [[ auto-close + selection wrapping ───────────────────────────────────
 //
-// Strategy: two separate responsibilities, no preventDefault needed.
+// Strategy: snapshot in keydown, react in updateListener.
 //
-// Problem with earlier attempts:
-//   - keymap: CM6 normalises Mac Option+key as "Alt-[", so key:"[" never matches
-//   - inputHandler alone: trying to re-select text after the first [ dispatch
-//     fails because the browser's own selection (read via getTargetRanges) does
-//     not see the CM-side re-selection, so the second [ sees no selection
-//   - keydown + preventDefault: Mac Option+key inserts the char regardless of
-//     keydown.preventDefault() in some browser/OS combinations, causing double
-//     dispatch
+// Why not inputHandler / keymap / keydown+preventDefault:
+//   All previous attempts failed because on Mac, Option+key input goes through
+//   the browser's IME/composition pipeline. keymap gets "Alt-[" (no match),
+//   inputHandler may be bypassed entirely, and preventDefault on keydown is
+//   ignored for Option combos in some Electron/browser configurations.
 //
-// Working approach:
-//   keydown  → just SNAPSHOT the selected text before the browser inserts the
-//              first [. No dispatch, no preventDefault. The browser replaces the
-//              selection with [ as normal — we let it.
-//   inputHandler → fires for the second [ (inputHandler IS called for [[→[[]]
-//              which already worked, so we know it fires). Sees before==[, finds
-//              the snapshot, inserts [[snapshot]] and replaces the stray [.
+// This approach never fights the browser:
+//   keydown      → snapshot selected text BEFORE first [ is inserted.
+//                  _pendingWikiText: null = nothing pending,
+//                                   ''   = [ pressed with no selection (→ [[]]),
+//                                   str  = [ pressed with selection (→ [[str]])
+//                  Second [ keydown keeps the stored value (sel is empty by then).
+//                  Any other key clears it.
+//   updateListener → after EVERY doc change, check whether [[ just appeared at
+//                  the cursor. If _pendingWikiText is set, replace [[ with the
+//                  right content. Dispatch is deferred (Promise microtask) to
+//                  avoid nested-dispatch errors.
 
 let _pendingWikiText: string | null = null
 
-// Capture selected text on keydown (before browser touches the doc)
 const bracketSelectionCapture = EditorView.domEventHandlers({
   keydown(event, view) {
     if (event.key !== '[') {
-      _pendingWikiText = null   // any other key clears the pending text
+      _pendingWikiText = null
       return false
     }
     const sel = view.state.selection.main
     if (!sel.empty) {
       _pendingWikiText = view.state.sliceDoc(sel.from, sel.to)
+    } else if (_pendingWikiText === null) {
+      _pendingWikiText = ''   // first [ with no selection
     }
-    return false  // always fall through — let browser insert [ normally
+    // If already set (non-null), don't overwrite — preserves stored text
+    // when the second [ is pressed and sel is empty
+    return false  // always fall through; never prevent browser input
   }
 })
 
-// inputHandler fires when [[ is typed; uses the captured text if present
-const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
-  if (insert !== '[') {
-    _pendingWikiText = null
-    return false
-  }
-  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
-  if (before !== '[') return false  // first [ — fall through
+const doubleBracketRule = EditorView.updateListener.of(update => {
+  if (!update.docChanged || _pendingWikiText === null) return
 
-  // Second [ detected
-  if (_pendingWikiText !== null) {
-    const text = _pendingWikiText
-    _pendingWikiText = null
-    // State now has a stray [ at from-1; replace it with [[text]]
-    view.dispatch({
-      changes: { from: from - 1, to, insert: `[[${text}]]` },
-      selection: { anchor: from - 1 + 2 + text.length + 2 }
-    })
-    return true
-  }
+  const state = update.state
+  const sel = state.selection.main
+  if (!sel.empty) return
 
-  // No captured text → plain [[]] with cursor inside
-  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
-  return true
+  const pos = sel.from
+  if (pos < 2 || state.sliceDoc(pos - 2, pos) !== '[[') return
+
+  const text = _pendingWikiText
+  _pendingWikiText = null
+
+  // Defer to avoid dispatching inside an updateListener
+  Promise.resolve().then(() => {
+    if (text === '') {
+      // [[]] — cursor between the brackets (pos is already after [[)
+      update.view.dispatch({
+        changes: { from: pos - 2, to: pos, insert: '[[]]' },
+        selection: { anchor: pos }   // pos - 2 + 2 = pos, inside [[]]
+      })
+    } else {
+      // [[selectedText]] — cursor after closing ]]
+      update.view.dispatch({
+        changes: { from: pos - 2, to: pos, insert: `[[${text}]]` },
+        selection: { anchor: pos + text.length + 2 }   // pos - 2 + 2 + len + 2
+      })
+    }
+  })
 })
 
 // ── Public factory ─────────────────────────────────────────────────────────
