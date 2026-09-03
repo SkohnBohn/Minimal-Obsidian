@@ -14,6 +14,7 @@ export interface Tab {
   name: string
   isDirty: boolean
   scrollPos: number
+  cursorPos: number        // persisted caret offset for cross-session restore
   cmState: EditorState | null
   initialContent: string
   contentVersion: number   // incremented on in-tab navigation to force editor remount
@@ -27,10 +28,10 @@ export interface Tab {
 const SESSION_TABS_KEY = 'session.tabs'
 const SESSION_ACTIVE_KEY = 'session.activeTabId'
 
-function makeTab(path: string, name: string, content: string): Tab {
+function makeTab(path: string, name: string, content: string, cursorPos = 0): Tab {
   return {
     id: uuidv4(), type: 'note', path, name,
-    isDirty: false, scrollPos: 0, cmState: null,
+    isDirty: false, scrollPos: 0, cursorPos, cmState: null,
     initialContent: content, contentVersion: 0,
     navHistory: [{ path, name }], navIndex: 0,
     lastUsed: Date.now()
@@ -40,7 +41,7 @@ function makeTab(path: string, name: string, content: string): Tab {
 function makeGraphTab(): Tab {
   return {
     id: uuidv4(), type: 'graph', path: '', name: 'Graph',
-    isDirty: false, scrollPos: 0, cmState: null,
+    isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
@@ -49,7 +50,7 @@ function makeGraphTab(): Tab {
 function makeSettingsTab(): Tab {
   return {
     id: uuidv4(), type: 'settings', path: '', name: 'Settings',
-    isDirty: false, scrollPos: 0, cmState: null,
+    isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
@@ -58,7 +59,7 @@ function makeSettingsTab(): Tab {
 function makeHotkeysTab(): Tab {
   return {
     id: uuidv4(), type: 'hotkeys', path: '', name: 'Shortcuts',
-    isDirty: false, scrollPos: 0, cmState: null,
+    isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
@@ -83,17 +84,17 @@ export function useTabs() {
     restored.current = true
     ;(async () => {
       const saved = (await window.api.settings.get(SESSION_TABS_KEY)) as
-        | Array<{ path: string; name: string; type?: string }> | undefined
+        | Array<{ path: string; name: string; type?: string; cursorPos?: number }> | undefined
       const savedActive = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as string | undefined
       if (!saved?.length) return
       const restoredTabs: Tab[] = []
-      for (const { path, name, type } of saved) {
+      for (const { path, name, type, cursorPos } of saved) {
         if (type === 'graph') { restoredTabs.push(makeGraphTab()); continue }
         if (type === 'hotkeys') { restoredTabs.push(makeHotkeysTab()); continue }
         if (type === 'settings') { restoredTabs.push(makeSettingsTab()); continue }
         let content = ''
         try { content = await window.api.vault.read(path) } catch { continue }
-        restoredTabs.push(makeTab(path, name, content))
+        restoredTabs.push(makeTab(path, name, content, cursorPos ?? 0))
       }
       if (!restoredTabs.length) return
       setTabs(restoredTabs)
@@ -103,7 +104,10 @@ export function useTabs() {
   }, [])
 
   useEffect(() => {
-    window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({ path: t.path, name: t.name, type: t.type })))
+    window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({
+      path: t.path, name: t.name, type: t.type,
+      cursorPos: t.cmState?.selection.main.head ?? t.cursorPos
+    })))
   }, [tabs])
 
   useEffect(() => {
@@ -310,7 +314,7 @@ export function useTabs() {
   }, [activateTab])
 
   const resetTabs = useCallback(async (
-    specs: Array<{ path: string; name: string; type: string }>,
+    specs: Array<{ path: string; name: string; type: string; cursorPos?: number }>,
     activeTabName?: string | null
   ) => {
     setTabs([])
@@ -323,7 +327,7 @@ export function useTabs() {
       if (s.type === 'settings') { restored.push(makeSettingsTab()); continue }
       let content = ''
       try { content = await window.api.vault.read(s.path) } catch { continue }
-      restored.push(makeTab(s.path, s.name, content))
+      restored.push(makeTab(s.path, s.name, content, s.cursorPos ?? 0))
     }
     if (!restored.length) return
     setTabs(restored)

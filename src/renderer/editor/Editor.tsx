@@ -46,7 +46,11 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     viewRef.current = view
     onViewReady(view)
 
-    if (tab.scrollPos) {
+    // Restore cursor position when loading from a session restore (no cmState)
+    if (!tab.cmState && tab.cursorPos) {
+      const pos = Math.min(tab.cursorPos, view.state.doc.length)
+      view.dispatch({ selection: { anchor: pos }, scrollIntoView: true })
+    } else if (tab.scrollPos) {
       view.requestMeasure({
         read: () => null,
         write: () => { view.scrollDOM.scrollTop = tab.scrollPos }
