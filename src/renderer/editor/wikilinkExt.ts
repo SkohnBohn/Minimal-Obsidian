@@ -178,59 +178,68 @@ const wikilinkCompletion = autocompletion({
   ]
 })
 
-// ── Bracket handling via keydown ──────────────────────────────────────────
+// ── [[ auto-close + selection wrapping ───────────────────────────────────
 //
-// Must use domEventHandlers({keydown}) — NOT inputHandler or keymap — because:
-//   - On Mac, Option+key (e.g. Option+5 → "[") goes through the browser's
-//     composition/IME pipeline, bypassing inputHandler entirely.
-//   - CM6 keymaps normalize Option+key as "Alt-[", so `key: '['` never matches.
-//   - keydown always fires first; event.key gives the logical character ("[")
-//     regardless of which physical keys were pressed; preventDefault() stops
-//     the browser from inserting anything after we handle it.
+// Strategy: two separate responsibilities, no preventDefault needed.
 //
-// Four cases:
-//   1. [ no selection, no prior [  → fall through (let browser insert normally)
-//   2. [ no selection, prior [     → [[]] with cursor inside
-//   3. [ with selection, no prior [ → insert [text, re-select text (next [ sees it)
-//   4. [ with selection, prior [   → [[text]] cursor after
+// Problem with earlier attempts:
+//   - keymap: CM6 normalises Mac Option+key as "Alt-[", so key:"[" never matches
+//   - inputHandler alone: trying to re-select text after the first [ dispatch
+//     fails because the browser's own selection (read via getTargetRanges) does
+//     not see the CM-side re-selection, so the second [ sees no selection
+//   - keydown + preventDefault: Mac Option+key inserts the char regardless of
+//     keydown.preventDefault() in some browser/OS combinations, causing double
+//     dispatch
+//
+// Working approach:
+//   keydown  → just SNAPSHOT the selected text before the browser inserts the
+//              first [. No dispatch, no preventDefault. The browser replaces the
+//              selection with [ as normal — we let it.
+//   inputHandler → fires for the second [ (inputHandler IS called for [[→[[]]
+//              which already worked, so we know it fires). Sees before==[, finds
+//              the snapshot, inserts [[snapshot]] and replaces the stray [.
 
-const doubleBracketRule = EditorView.domEventHandlers({
+let _pendingWikiText: string | null = null
+
+// Capture selected text on keydown (before browser touches the doc)
+const bracketSelectionCapture = EditorView.domEventHandlers({
   keydown(event, view) {
-    if (event.key !== '[') return false
-
+    if (event.key !== '[') {
+      _pendingWikiText = null   // any other key clears the pending text
+      return false
+    }
     const sel = view.state.selection.main
-    const before = view.state.sliceDoc(Math.max(0, sel.from - 1), sel.from)
-    const prevIsBracket = before === '['
-
-    if (sel.empty) {
-      if (!prevIsBracket) return false  // case 1: normal [
-      // case 2: second [ with no selection → [[]] cursor inside
-      view.dispatch({
-        changes: { from: sel.from, to: sel.to, insert: '[]]' },
-        selection: { anchor: sel.from + 1 }
-      })
-      event.preventDefault()
-      return true
+    if (!sel.empty) {
+      _pendingWikiText = view.state.sliceDoc(sel.from, sel.to)
     }
+    return false  // always fall through — let browser insert [ normally
+  }
+})
 
-    const selectedText = view.state.sliceDoc(sel.from, sel.to)
+// inputHandler fires when [[ is typed; uses the captured text if present
+const doubleBracketRule = EditorView.inputHandler.of((view, from, to, insert) => {
+  if (insert !== '[') {
+    _pendingWikiText = null
+    return false
+  }
+  const before = view.state.sliceDoc(Math.max(0, from - 1), from)
+  if (before !== '[') return false  // first [ — fall through
 
-    if (prevIsBracket) {
-      // case 4: second [ with selection → [[selectedText]]
-      view.dispatch({
-        changes: { from: sel.from - 1, to: sel.to, insert: `[[${selectedText}]]` },
-        selection: { anchor: sel.from - 1 + 2 + selectedText.length + 2 }
-      })
-    } else {
-      // case 3: first [ with selection → insert [, keep text selected for next [
-      view.dispatch({
-        changes: { from: sel.from, to: sel.to, insert: '[' + selectedText },
-        selection: { anchor: sel.from + 1, head: sel.from + 1 + selectedText.length }
-      })
-    }
-    event.preventDefault()
+  // Second [ detected
+  if (_pendingWikiText !== null) {
+    const text = _pendingWikiText
+    _pendingWikiText = null
+    // State now has a stray [ at from-1; replace it with [[text]]
+    view.dispatch({
+      changes: { from: from - 1, to, insert: `[[${text}]]` },
+      selection: { anchor: from - 1 + 2 + text.length + 2 }
+    })
     return true
   }
+
+  // No captured text → plain [[]] with cursor inside
+  view.dispatch({ changes: { from, to, insert: '[]]' }, selection: { anchor: from + 1 } })
+  return true
 })
 
 // ── Public factory ─────────────────────────────────────────────────────────
@@ -239,6 +248,7 @@ export function wikilinkExtension(opts: WikiLinkExtOptions) {
   return [
     noteNamesField.init(() => opts.noteNames),
     wikilinkRangesField,
+    bracketSelectionCapture,
     doubleBracketRule,
     wikilinkDecorationPlugin,
     makeClickHandlers(opts.onNavigate, opts.onOpenNewTab),
