@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { FileEntry, SearchResult, LinkGraph, VaultChangeEvent } from '../preload/index'
+import type { FileEntry, SearchResult, LinkGraph, VaultChangeEvent, Backlinks } from '../preload/index'
 
 declare global {
   interface Window {
@@ -19,6 +19,7 @@ declare global {
         getSaved(): Promise<string[]>
         setSaved(paths: string[]): Promise<void>
         links(): Promise<LinkGraph>
+        backlinks(name: string): Promise<Backlinks>
         onChange(cb: (event: VaultChangeEvent) => void): () => void
       }
       search: {

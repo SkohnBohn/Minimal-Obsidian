@@ -64,6 +64,16 @@ export function removeFile(path: string): void {
   }
 }
 
+// Exposes the already-maintained in-memory content cache for callers (e.g. backlinks)
+// that need full-vault text without re-reading every file from disk on each query.
+export function listIndexedDocs(): Array<{ path: string; name: string; content: string }> {
+  return Array.from(docs.values()).map(d => ({
+    path: d.path,
+    name: d.name,
+    content: d.sourcesContent ? `${d.content}\n${d.sourcesContent}` : d.content
+  }))
+}
+
 function buildSnippets(content: string, query: string, maxHits = 50): string[] {
   const lower = content.toLowerCase()
   const q = query.toLowerCase()

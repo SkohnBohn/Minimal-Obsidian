@@ -7,11 +7,13 @@ import GraphPanel from './graph/GraphPanel'
 import HotkeysPanel from './hotkeys/HotkeysPanel'
 import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
+import BacklinksPanel from './backlinks/BacklinksPanel'
 import FileSwitcher from './modal/FileSwitcher'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
 interface FileEntry { name: string; path: string; mtime: number }
+interface BacklinkGroup { name: string; path: string; snippets: string[] }
 
 export default function App() {
   const [files, setFiles] = useState<FileEntry[]>([])
@@ -20,6 +22,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<{path:string;name:string;snippets:string[]}[]>([])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [backlinks, setBacklinks] = useState<{ linked: BacklinkGroup[]; unlinked: BacklinkGroup[] }>({ linked: [], unlinked: [] })
+  const [backlinksOpen, setBacklinksOpen] = useState(true)
+  const backlinksDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleSearchQuery = useCallback((q: string) => {
     setSearchQuery(q)
@@ -74,6 +79,9 @@ export default function App() {
   useEffect(() => {
     if (searchStateLoaded.current) window.api.settings.set('search.findQuery', findQuery)
   }, [findQuery])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('backlinks.open', backlinksOpen)
+  }, [backlinksOpen])
 
   // showFind resets on every activeTabId change; restore it only after first tab load.
   useEffect(() => { setShowFind(false) }, [activeTabId])
@@ -140,7 +148,8 @@ export default function App() {
       window.api.settings.get('search.sidebarQuery'),
       window.api.settings.get('search.findOpen'),
       window.api.settings.get('search.findQuery'),
-    ]).then(([sidebarOpen, sidebarQuery, findOpen, findQuery]) => {
+      window.api.settings.get('backlinks.open'),
+    ]).then(([sidebarOpen, sidebarQuery, findOpen, findQuery, backlinksOpenSaved]) => {
       if (sidebarOpen) setShowSidebar(true)
       if (sidebarQuery) {
         const q = sidebarQuery as string
@@ -149,6 +158,7 @@ export default function App() {
       }
       pendingFindOpen.current = !!(findOpen)
       if (findQuery) setFindQuery(findQuery as string)
+      if (backlinksOpenSaved !== undefined) setBacklinksOpen(backlinksOpenSaved as boolean)
       searchStateLoaded.current = true
     })
   }, [])
@@ -170,10 +180,30 @@ export default function App() {
     })()
   }, [])
 
+  const activeNoteName = activeTab?.type === 'note' ? activeTab.name : null
+
+  // Debounced — the query itself is a cheap in-memory scan (reuses the search
+  // index's already-maintained content cache, no disk reads), but this still
+  // avoids re-running it on every rapid-fire vault:changed burst.
+  const refreshBacklinks = useCallback((name: string) => {
+    if (backlinksDebounce.current) clearTimeout(backlinksDebounce.current)
+    backlinksDebounce.current = setTimeout(async () => {
+      setBacklinks(await window.api.vault.backlinks(name))
+    }, 150)
+  }, [])
+
+  useEffect(() => {
+    if (activeNoteName) refreshBacklinks(activeNoteName)
+    else setBacklinks({ linked: [], unlinked: [] })
+  }, [activeNoteName, refreshBacklinks])
+
   useEffect(() => {
     if (!vaultReady) return
-    return window.api.vault.onChange(async () => setFiles(await window.api.vault.list()))
-  }, [vaultReady])
+    return window.api.vault.onChange(async () => {
+      setFiles(await window.api.vault.list())
+      if (activeNoteName) refreshBacklinks(activeNoteName)
+    })
+  }, [vaultReady, activeNoteName, refreshBacklinks])
 
   const noteNames = files.map(f => f.name)
 
@@ -385,6 +415,8 @@ export default function App() {
         e.preventDefault(); openSettingsTab()
       } else if (meta && e.shiftKey && !e.altKey && e.key === 'G') {
         e.preventDefault(); openGraphTab()
+      } else if (meta && e.shiftKey && !e.altKey && e.key === 'B') {
+        e.preventDefault(); setBacklinksOpen(v => !v)
       } else if (e.key === 'Escape') {
         setShowSwitcher(false); setShowSidebar(false); setShowFind(false)
       }
@@ -537,6 +569,20 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {activeTab?.type === 'note' && (
+          <BacklinksPanel
+            linked={backlinks.linked}
+            unlinked={backlinks.unlinked}
+            open={backlinksOpen}
+            onToggleOpen={() => setBacklinksOpen(v => !v)}
+            onOpen={(path, name, newTab) => {
+              if (newTab) { openTabForceNew(path, name); return }
+              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name, true)
+              else openTab(path, name)
+            }}
+          />
+        )}
       </div>
 
       {showSwitcher && (

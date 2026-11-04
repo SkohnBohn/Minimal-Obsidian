@@ -21,8 +21,8 @@ import {
   addVaultToWatcher,
   removeVaultFromWatcher
 } from './vaultManager'
-import { search } from './searchIndex'
-import { buildLinkGraph } from './linkParser'
+import { search, listIndexedDocs } from './searchIndex'
+import { buildLinkGraph, findBacklinks } from './linkParser'
 import { promises as fs } from 'fs'
 
 const store = new Store()
@@ -220,6 +220,10 @@ function registerIPC(win: BrowserWindow): void {
       }))
     )
     return buildLinkGraph(withContent)
+  })
+
+  ipcMain.handle('vault:backlinks', async (_e, name: string) => {
+    return findBacklinks(name, listIndexedDocs())
   })
 
   ipcMain.handle('search:query', async (_e, query: string) => {

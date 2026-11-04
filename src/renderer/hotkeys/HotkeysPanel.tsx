@@ -17,6 +17,7 @@ const GROUPS: [string, [string, string][]][] = [
     ['CMD + OPT + LEFT', 'back'],
     ['CMD + OPT + RIGHT', 'forward'],
     ['CMD + SHIFT + G', 'graph view'],
+    ['CMD + SHIFT + B', 'toggle linked mentions'],
     ['CMD + ,', 'settings'],
   ]],
   ['citations', [

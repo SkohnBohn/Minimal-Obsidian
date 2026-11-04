@@ -17,6 +17,17 @@ export interface LinkGraph {
   edges: Array<{ source: string; target: string }>
 }
 
+export interface BacklinkGroup {
+  name: string
+  path: string
+  snippets: string[]
+}
+
+export interface Backlinks {
+  linked: BacklinkGroup[]
+  unlinked: BacklinkGroup[]
+}
+
 export interface VaultChangeEvent {
   type: 'add' | 'change' | 'unlink'
   path: string
@@ -43,6 +54,7 @@ const api = {
     getSaved: (): Promise<string[]> => ipcRenderer.invoke('vault:getSaved'),
     setSaved: (paths: string[]): Promise<void> => ipcRenderer.invoke('vault:setSaved', paths),
     links: (): Promise<LinkGraph> => ipcRenderer.invoke('vault:links'),
+    backlinks: (name: string): Promise<Backlinks> => ipcRenderer.invoke('vault:backlinks', name),
     getOverlayState: (): Promise<{ overlayMode: boolean; overlayPaths: string[] }> =>
       ipcRenderer.invoke('vault:getOverlayState'),
     setOverlayMode: (enabled: boolean): Promise<{ files: FileEntry[]; newPrimary?: string | null }> =>
