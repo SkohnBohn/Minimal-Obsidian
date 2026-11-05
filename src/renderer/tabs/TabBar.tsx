@@ -7,6 +7,7 @@ interface TabBarProps {
   paneId: PaneId
   tabs: Tab[]
   activeTabId: string | null
+  isPaneFocused: boolean
   onActivate: (id: string) => void
   onClose: (id: string) => void
   onReorder: (fromIdx: number, toIdx: number) => void
@@ -19,7 +20,7 @@ interface TabBarProps {
 }
 
 export default function TabBar({
-  paneId, tabs, activeTabId, onActivate, onClose, onReorder, onMoveFromOtherPane,
+  paneId, tabs, activeTabId, isPaneFocused, onActivate, onClose, onReorder, onMoveFromOtherPane,
   onTabDragStart, onTabDragEnd, keyboardOnly, onSettings, settingsActive
 }: TabBarProps) {
   const [dragSrc, setDragSrc] = useState<number | null>(null)
@@ -99,6 +100,7 @@ export default function TabBar({
           className={[
             'tab',
             tab.id === activeTabId ? 'active' : '',
+            tab.id === activeTabId && !isPaneFocused ? 'pane-unfocused' : '',
             insertAt === i ? 'tab-insert-before' : '',
             insertAt === i + 1 && i === tabs.length - 1 ? 'tab-insert-after' : '',
           ].filter(Boolean).join(' ')}

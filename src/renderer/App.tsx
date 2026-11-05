@@ -592,6 +592,7 @@ export default function App() {
           paneId={pane}
           tabs={paneTabs}
           activeTabId={pane === 'left' && inlineSettings ? null : paneActiveTab?.id ?? null}
+          isPaneFocused={pane === focusedPane}
           onActivate={id => { setActiveTabId(id, pane); setInlineSettings(false) }}
           onClose={handleCloseTab}
           onReorder={(from, to) => reorderTab(pane, from, to)}

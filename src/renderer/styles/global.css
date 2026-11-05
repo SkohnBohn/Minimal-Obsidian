@@ -324,6 +324,18 @@ input {
   background: var(--bg);
 }
 
+/* Third tab state: this is the open tab of a pane that isn't the focused
+   one right now. Keeps the border-top (still "the open tab here") but stays
+   on the tabbar's own background instead of claiming the full active look,
+   which is reserved for whichever pane actually has focus. */
+.tab.active.pane-unfocused {
+  background: var(--bg-inset);
+  opacity: 0.65;
+}
+.tab.active.pane-unfocused::after {
+  background: var(--bg-inset);
+}
+
 .tab-name {
   flex: 1;
   min-width: 0;
