@@ -32,6 +32,26 @@ function stripTags(html: string): string {
   return html.replace(/<\/?[^>]+>/g, '')
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Re-renders a snippet's plain text with <mark> around matches of the typed
+// filter query — the backend's own highlight marks (wherever the active
+// note's name appears, which is what makes it a backlink in the first
+// place) are discarded here in favor of what the user actually typed, same
+// as the search sidebar highlights its own query rather than anything else.
+function highlightQuery(plainText: string, query: string): string {
+  const escaped = escapeHtml(plainText)
+  const q = query.trim()
+  if (!q) return escaped
+  return escaped.replace(new RegExp(`(${escapeRegExp(escapeHtml(q))})`, 'gi'), '<mark>$1</mark>')
+}
+
 // Client-side filter over the already-fetched backlinks — no IPC round trip.
 // A group survives if its name matches (then it keeps all its snippets) or
 // if any individual snippet's text matches (then only those snippets show).
@@ -47,9 +67,10 @@ function filterGroups(groups: BacklinkGroup[], query: string): BacklinkGroup[] {
   return out
 }
 
-function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, onHoverEntry }: {
+function Group({ group, muted, query, startIndex, selectedIndex, selectedRef, onOpen, onHoverEntry }: {
   group: BacklinkGroup
   muted: boolean
+  query: string
   startIndex: number
   selectedIndex: number
   selectedRef: React.RefObject<HTMLDivElement>
@@ -74,7 +95,7 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, o
             data-selected={idx === selectedIndex ? 'true' : undefined}
             onMouseEnter={() => onHoverEntry(idx)}
             onClick={e => onOpen(group.path, group.name, e.metaKey || e.ctrlKey, s.from)}
-            dangerouslySetInnerHTML={{ __html: s.html }}
+            dangerouslySetInnerHTML={{ __html: highlightQuery(stripTags(s.html), query) }}
           />
         )
       })}
@@ -244,6 +265,7 @@ export default function BacklinksPanel({ linked, unlinked, open, width, onToggle
                 key={g.path}
                 group={g}
                 muted={false}
+                query={filterQuery}
                 startIndex={starts[i]}
                 selectedIndex={selectedIndex}
                 selectedRef={selectedRef}
@@ -264,6 +286,7 @@ export default function BacklinksPanel({ linked, unlinked, open, width, onToggle
                 key={g.path}
                 group={g}
                 muted
+                query={filterQuery}
                 startIndex={starts[shownLinked.length + i]}
                 selectedIndex={selectedIndex}
                 selectedRef={selectedRef}
