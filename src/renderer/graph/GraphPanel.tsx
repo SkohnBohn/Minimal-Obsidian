@@ -167,7 +167,7 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
     const canvas = canvasRef.current
     if (!canvas) return
     const zb = d3zoom<HTMLCanvasElement, unknown>()
-      .scaleExtent([0.1, 8])
+      .scaleExtent([0.00001, 8])
       .on('zoom', e => { transformRef.current = e.transform; draw() })
     select(canvas).call(zb)
     zoomRef.current = zb

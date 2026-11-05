@@ -33,9 +33,6 @@ function Group({ group, muted, onOpen }: {
 }
 
 export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, onOpen }: BacklinksPanelProps) {
-  const total = linked.length + unlinked.length
-  if (total === 0) return null  // orphan note — nothing to fold, nothing to show
-
   if (!open) {
     return (
       <button className="backlinks-strip" onClick={onToggleOpen}>
