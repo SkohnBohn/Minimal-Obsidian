@@ -30,6 +30,12 @@ const GROUPS: [string, [string, string][]][] = [
     ['SCROLL', 'zoom'],
     ['DRAG', 'pan'],
   ]],
+  ['search & linked mentions', [
+    ['UP / DOWN', 'next / prev match'],
+    ['OPT + UP / DOWN', 'next / prev file'],
+    ['CMD + UP / DOWN', 'jump to top / bottom'],
+    ['CMD + LEFT / RIGHT', 'switch search ↔ linked mentions'],
+  ]],
 ]
 
 export default function HotkeysPanel() {

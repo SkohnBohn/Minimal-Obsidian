@@ -48,7 +48,10 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
     selectedRef.current?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex])
 
-  // Global keydown handler — works regardless of focus
+  // Global keydown handler — works regardless of focus.
+  // Three navigation tiers: plain arrows step entry by entry, Option/Alt+arrow
+  // jumps file by file, Cmd/Ctrl+arrow jumps to the very top/bottom entry.
+  // Cmd/Ctrl+Right hands off to the backlinks panel, when it's open.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const active = document.activeElement
@@ -57,8 +60,25 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
         // Still allow ArrowRight from settings → search (handled below)
         return
       }
-      const jump = e.metaKey || e.ctrlKey
-      if (e.key === 'ArrowDown' && jump) {
+      const meta = e.metaKey || e.ctrlKey
+      const alt = e.altKey
+
+      if (e.key === 'ArrowRight' && meta) {
+        const panel = document.querySelector<HTMLElement>('.backlinks-panel')
+        if (panel) { e.preventDefault(); panel.focus() }
+        return
+      }
+      if (e.key === 'ArrowDown' && meta) {
+        e.preventDefault()
+        setSelectedIndex(entriesRef.current.length - 1)
+        return
+      }
+      if (e.key === 'ArrowUp' && meta) {
+        e.preventDefault()
+        setSelectedIndex(entriesRef.current.length ? 0 : -1)
+        return
+      }
+      if (e.key === 'ArrowDown' && alt) {
         // Jump to the next file's first entry, regardless of how many matches
         // the current file has.
         e.preventDefault()
@@ -68,7 +88,9 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           const next = entries.findIndex(en => en.resultIndex === curRi + 1)
           return next === -1 ? i : next
         })
-      } else if (e.key === 'ArrowUp' && jump) {
+        return
+      }
+      if (e.key === 'ArrowUp' && alt) {
         e.preventDefault()
         setSelectedIndex(i => {
           const entries = entriesRef.current
@@ -77,13 +99,19 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           const prev = entries.findIndex(en => en.resultIndex === curRi - 1)
           return prev === -1 ? i : prev
         })
-      } else if (e.key === 'ArrowDown') {
+        return
+      }
+      if (e.key === 'ArrowDown') {
         e.preventDefault()
         setSelectedIndex(i => Math.min(i + 1, entriesRef.current.length - 1))
-      } else if (e.key === 'ArrowUp') {
+        return
+      }
+      if (e.key === 'ArrowUp') {
         e.preventDefault()
         setSelectedIndex(i => Math.max(i - 1, -1))
-      } else if (e.key === 'Enter') {
+        return
+      }
+      if (e.key === 'Enter') {
         e.preventDefault()
         setSelectedIndex(i => {
           const idx = i >= 0 ? i : 0
@@ -92,7 +120,9 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           if (r) onOpenRef.current(r.path, r.name)
           return i
         })
-      } else if (e.key === 'ArrowRight' && active === inputRef.current) {
+        return
+      }
+      if (e.key === 'ArrowRight' && active === inputRef.current) {
         const inp = inputRef.current!
         const atEnd = inp.selectionStart === inp.value.length &&
                       inp.selectionStart === inp.selectionEnd
@@ -118,7 +148,10 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           placeholder="Search notes…"
           value={query}
           onChange={e => onQuery(e.target.value)}
-          onFocus={e => e.target.select()}
+          onFocus={e => {
+            e.target.select()
+            setSelectedIndex(i => (i === -1 && entriesRef.current.length ? 0 : i))
+          }}
         />
       </div>
       <div className="sidebar-results">
