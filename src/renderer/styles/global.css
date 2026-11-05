@@ -131,6 +131,7 @@ input {
 }
 
 .sidebar-input-wrap {
+  position: relative;
   padding: 8px;
   border-bottom: 1px solid var(--ash);
 }
@@ -139,7 +140,7 @@ input {
   width: 100%;
   background: var(--bg);
   border: 1px solid var(--ash);
-  padding: 4px 8px;
+  padding: 4px 28px 4px 8px;  /* right padding reserves room for the count, so long queries never run under it */
   outline: none;
   color: var(--ink);
   font-size: 13px;
@@ -148,6 +149,19 @@ input {
 .sidebar-input:focus {
   outline: none;
   border-color: var(--ash);
+}
+
+/* Quiet match-count readout, sitting inside the input's own right edge */
+.sidebar-input-count {
+  position: absolute;
+  right: 17px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--stone);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
 }
 
 .sidebar-results {

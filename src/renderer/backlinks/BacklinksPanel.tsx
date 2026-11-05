@@ -95,10 +95,14 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // Hovering an entry selects it, same as arrow keys would — so there's only
   // ever one selected/bordered entry. Moving the mouse off the list leaves
   // the selection on whatever was last hovered; arrow keys continue from there.
+  // It also claims focus for this pane — hovering backlinks while search
+  // currently "owns" the arrow keys hands them back to backlinks.
   function handleHoverEntry(idx: number) {
-    if (idx === selectedIndex) return
-    suppressScrollRef.current = true
-    setSelectedIndex(idx)
+    if (idx !== selectedIndex) {
+      suppressScrollRef.current = true
+      setSelectedIndex(idx)
+    }
+    containerRef.current?.focus()
   }
 
   // Same three-tier scheme as the search sidebar: plain arrows step entry by

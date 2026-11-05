@@ -56,10 +56,15 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
   // ever one selected/bordered entry, never a separate keyboard one and a
   // separate hovered one. Moving the mouse off the list leaves the selection
   // on whatever was last hovered; arrow keys then continue from there.
+  // It also claims focus for this pane, so hovering search while backlinks
+  // currently "owns" the arrow keys hands them back to search — hovering
+  // wins over whichever pane was last used via keyboard/Cmd+Left/Right.
   function handleHoverEntry(idx: number) {
-    if (idx === selectedIndex) return
-    suppressScrollRef.current = true
-    setSelectedIndex(idx)
+    if (idx !== selectedIndex) {
+      suppressScrollRef.current = true
+      setSelectedIndex(idx)
+    }
+    inputRef.current?.focus()
   }
 
   // Global keydown handler — works regardless of focus.
@@ -167,6 +172,9 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
             setSelectedIndex(i => (i === -1 && entriesRef.current.length ? 0 : i))
           }}
         />
+        {query.trim() && (
+          <span className="sidebar-input-count">{results.length}</span>
+        )}
       </div>
       <div className="sidebar-results">
         {(() => {
