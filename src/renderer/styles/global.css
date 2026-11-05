@@ -198,8 +198,12 @@ input {
 
 .sidebar-result-snippet mark {
   background: none;
-  color: var(--link);
+  color: var(--ink);
   font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--link);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
 }
 
 /* Tab bar */
