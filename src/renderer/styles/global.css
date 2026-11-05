@@ -162,10 +162,6 @@ input {
   border-bottom: 1px solid transparent;
 }
 
-.sidebar-result:hover {
-  background: var(--bg);
-}
-
 .sidebar-result-title {
   font-size: 13px;
   font-weight: 500;
@@ -189,7 +185,8 @@ input {
   overflow: hidden;
 }
 
-.sidebar-result-snippet[data-selected="true"] {
+.sidebar-result-snippet[data-selected="true"],
+.sidebar-result-snippet:hover {
   border-color: var(--link);
   opacity: 1;
 }
@@ -652,7 +649,6 @@ input {
   padding: 6px 10px;
   cursor: pointer;
 }
-.backlink-group:hover { background: var(--bg); }
 
 .backlink-group-title {
   font-size: 13px;
@@ -678,7 +674,8 @@ input {
 }
 .backlink-snippet + .backlink-snippet { margin-top: 2px; }
 
-.backlink-snippet[data-selected="true"] {
+.backlink-snippet[data-selected="true"],
+.backlink-snippet:hover {
   border-color: var(--link);
   opacity: 1;
 }
@@ -695,7 +692,8 @@ input {
   font-weight: 400;
 }
 .backlink-group-muted .backlink-snippet { opacity: 0.6; }
-.backlink-group-muted .backlink-snippet[data-selected="true"] { opacity: 1; }
+.backlink-group-muted .backlink-snippet[data-selected="true"],
+.backlink-group-muted .backlink-snippet:hover { opacity: 1; }
 .backlink-group-muted .backlink-snippet mark {
   color: var(--stone);
   font-weight: 400;
