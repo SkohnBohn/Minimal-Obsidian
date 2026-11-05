@@ -108,6 +108,19 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
         '.cm-tooltip': { background: 'var(--bg-inset) !important', border: '1px solid var(--ash) !important', borderRadius: '0 !important', boxShadow: 'none !important' },
         '.cm-searchMatch':          { backgroundColor: '#d4c89a' },
         '.cm-searchMatch-selected': { backgroundColor: '#b09050 !important' },
+        // Wikilink autocomplete — same "thin border, no fill" selection
+        // language as the search sidebar and backlinks panel, instead of
+        // CodeMirror's default blue highlight.
+        '.cm-tooltip-autocomplete': { background: 'var(--bg) !important' },
+        '.cm-tooltip-autocomplete > ul': { background: 'var(--bg) !important', fontFamily: 'var(--font)' },
+        '.cm-tooltip-autocomplete > ul > li': { color: 'var(--ink)', border: '1px solid transparent' },
+        '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+          background: 'none !important',
+          borderColor: 'var(--link) !important',
+          color: 'var(--ink) !important'
+        },
+        '.cm-tooltip-autocomplete > ul > li:hover': { borderColor: 'var(--link)' },
+        '.cm-completionMatchedText': { textDecoration: 'none', color: 'var(--link)', fontWeight: '600' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       imageEmbedExt,
