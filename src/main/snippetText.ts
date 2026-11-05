@@ -17,9 +17,16 @@ export function stripMarkdownNoise(text: string): string {
     // A snippet is built from "before"+<mark>+"after" slices, so when the
     // match itself sits inside a formatted span, each half only ever sees
     // ONE side of the delimiter pair — the passes above require both sides
-    // present and so leave it untouched. Mop up what's left: multi-char
-    // tokens and brackets are unambiguous noise even alone; bare single
-    // */_ are left alone since those do occur as literal characters.
+    // present and so leave it untouched. Mop up what's left:
+    // - a dangling "[[target|" or "[[target" opener, with no closing "]]"
+    //   in this half: drop the whole fragment, not just the brackets,
+    //   otherwise e.g. [[SSD|SSDs]] leaves "SSD|" sitting in front of the match
+    .replace(/!?\[\[[^[\]]*$/, '')
+    // - the mirror case: a dangling "|display]]" or "]]" closer with no
+    //   opening "[[" in this half
+    .replace(/^[^[\]]*\]\]/, '')
+    // - any remaining multi-char tokens are unambiguous noise even alone;
+    //   bare single */_ are left alone since those do occur as literal characters
     .replace(/\*\*|__|~~|`/g, '')
     .replace(/\[\[|\]\]/g, '')
 }

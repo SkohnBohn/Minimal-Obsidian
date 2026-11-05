@@ -168,7 +168,9 @@ input {
   flex: 1;
   overflow-y: auto;
   padding: 4px 0;
+  scrollbar-width: none;
 }
+.sidebar-results::-webkit-scrollbar { display: none; width: 0; }
 
 .sidebar-result {
   padding: 6px 8px;
@@ -370,8 +372,10 @@ input {
 .editor-wrap {
   flex: 1;
   overflow: auto;
+  scrollbar-width: none;
   padding: 12px 0 24px;
 }
+.editor-wrap::-webkit-scrollbar { display: none; width: 0; }
 
 /* Single centering wrapper shared by the title and the editor —
    guarantees both start at the exact same horizontal position. */
@@ -453,7 +457,8 @@ input {
 }
 
 .cm-editor.cm-focused { outline: none !important; }
-.cm-scroller { overflow: auto; font-family: var(--font); }
+.cm-scroller { overflow: auto; font-family: var(--font); scrollbar-width: none; }
+.cm-scroller::-webkit-scrollbar { display: none; width: 0; }
 .cm-cursor { border-left-color: var(--ink); }
 .cm-activeLine { background: transparent !important; }
 .cm-selectionBackground { background: var(--select) !important; }
@@ -640,7 +645,9 @@ input {
   flex: 1;
   overflow-y: auto;
   padding: 4px 0;
+  scrollbar-width: none;
 }
+.backlinks-body::-webkit-scrollbar { display: none; width: 0; }
 
 .backlinks-section + .backlinks-section {
   border-top: 1px solid var(--ash);

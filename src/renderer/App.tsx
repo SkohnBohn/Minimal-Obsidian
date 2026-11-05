@@ -361,7 +361,11 @@ export default function App() {
       if (pos !== undefined && activeEditorView.current) {
         const view = activeEditorView.current
         const clamped = Math.min(pos, view.state.doc.length)
-        view.dispatch({ selection: { anchor: clamped }, scrollIntoView: true })
+        view.dispatch({
+          selection: { anchor: clamped },
+          effects: EditorView.scrollIntoView(clamped, { y: 'center' })
+        })
+        view.focus()
       }
       return
     }

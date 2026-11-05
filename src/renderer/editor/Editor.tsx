@@ -46,10 +46,23 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
     viewRef.current = view
     onViewReady(view)
 
-    // Restore cursor position when loading from a session restore (no cmState)
+    // Restore cursor position when loading from a session restore, or landing
+    // here from a search/backlink click-to-jump (no cmState yet either way).
     if (!tab.cmState && tab.cursorPos) {
       const pos = Math.min(tab.cursorPos, view.state.doc.length)
-      view.dispatch({ selection: { anchor: pos }, scrollIntoView: true })
+      view.dispatch({
+        selection: { anchor: pos },
+        effects: EditorView.scrollIntoView(pos, { y: 'center' })
+      })
+      view.focus()
+    } else if (tab.cmState && tab.scrollToSelection) {
+      // Jumped into an already-rendered (but inactive) tab via jumpInTab —
+      // cmState already carries the right selection, but a brand new
+      // EditorView doesn't inherit scroll position from it, so this view
+      // never got a chance to actually scroll there until now.
+      const pos = view.state.selection.main.head
+      view.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'center' }) })
+      view.focus()
     } else if (tab.scrollPos) {
       view.requestMeasure({
         read: () => null,

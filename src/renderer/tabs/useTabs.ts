@@ -23,6 +23,7 @@ export interface Tab {
   cameFrom?: string        // tab id to return to when goBack is called at navIndex 0
   isNaming?: boolean       // true for brand-new tabs until title is committed
   lastUsed: number         // timestamp of last activation, for recency sorting
+  scrollToSelection?: boolean  // one-shot: next mount should scroll to cmState's current selection
 }
 
 const SESSION_TABS_KEY = 'session.tabs'
@@ -205,8 +206,11 @@ export function useTabs() {
       if (t.id !== tabId) return t
       if (t.cmState) {
         const clamped = Math.min(pos, t.cmState.doc.length)
-        const newState = t.cmState.update({ selection: { anchor: clamped }, scrollIntoView: true }).state
-        return { ...t, cmState: newState, cursorPos: clamped }
+        // scrollIntoView here is a no-op — this state isn't attached to a live
+        // view yet, so there's nothing to scroll. The editor applies the
+        // actual scroll itself once it mounts with this state (scrollToSelection).
+        const newState = t.cmState.update({ selection: { anchor: clamped } }).state
+        return { ...t, cmState: newState, cursorPos: clamped, scrollToSelection: true }
       }
       return { ...t, cursorPos: pos }
     }))
