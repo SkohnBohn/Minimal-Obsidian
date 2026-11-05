@@ -84,8 +84,8 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
       const alt = e.altKey
 
       if (e.key === 'ArrowRight' && meta) {
-        const panel = document.querySelector<HTMLElement>('.backlinks-panel')
-        if (panel) { e.preventDefault(); panel.focus() }
+        const input = document.querySelector<HTMLElement>('.backlinks-input')
+        if (input) { e.preventDefault(); input.focus() }
         return
       }
       if (e.key === 'ArrowDown' && meta) {

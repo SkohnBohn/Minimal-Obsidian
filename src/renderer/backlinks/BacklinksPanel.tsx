@@ -27,6 +27,25 @@ function flattenEntries(groups: BacklinkGroup[]): FlatEntry[] {
   return out
 }
 
+function stripTags(html: string): string {
+  return html.replace(/<\/?[^>]+>/g, '')
+}
+
+// Client-side filter over the already-fetched backlinks — no IPC round trip.
+// A group survives if its name matches (then it keeps all its snippets) or
+// if any individual snippet's text matches (then only those snippets show).
+function filterGroups(groups: BacklinkGroup[], query: string): BacklinkGroup[] {
+  if (!query.trim()) return groups
+  const q = query.toLowerCase()
+  const out: BacklinkGroup[] = []
+  for (const g of groups) {
+    if (g.name.toLowerCase().includes(q)) { out.push(g); continue }
+    const matching = g.snippets.filter(s => stripTags(s.html).toLowerCase().includes(q))
+    if (matching.length) out.push({ ...g, snippets: matching })
+  }
+  return out
+}
+
 function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, onHoverEntry }: {
   group: BacklinkGroup
   muted: boolean
@@ -63,9 +82,13 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, o
 }
 
 export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, onOpen }: BacklinksPanelProps) {
-  const allGroups = [...linked, ...unlinked]
+  const [filterQuery, setFilterQuery] = useState('')
+  const shownLinked = filterGroups(linked, filterQuery)
+  const shownUnlinked = filterGroups(unlinked, filterQuery)
+  const allGroups = [...shownLinked, ...shownUnlinked]
+
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const selectedRef = useRef<HTMLDivElement>(null)
   const entriesRef = useRef<FlatEntry[]>([])
   const groupsRef = useRef<BacklinkGroup[]>([])
@@ -76,19 +99,20 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
     groupsRef.current = allGroups
     entriesRef.current = flattenEntries(allGroups)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linked, unlinked])
+  }, [shownLinked, shownUnlinked])
 
-  // Focus the panel when it's explicitly toggled open (e.g. Cmd/Ctrl+Shift+B),
-  // so arrow keys work immediately — but not on an incidental re-render where
-  // `open` was already true (switching notes while the panel stays open).
+  // Focus the filter input when the panel is explicitly toggled open (e.g.
+  // Cmd/Ctrl+Shift+B), so arrow keys (and typing) work immediately — but not
+  // on an incidental re-render where `open` was already true (switching
+  // notes while the panel stays open).
   const prevOpenRef = useRef(open)
   useEffect(() => {
-    if (open && !prevOpenRef.current) containerRef.current?.focus()
+    if (open && !prevOpenRef.current) inputRef.current?.focus()
     prevOpenRef.current = open
   }, [open])
 
-  // Reset selection when the note (and so its backlinks) changes
-  useEffect(() => { setSelectedIndex(-1) }, [linked, unlinked])
+  // Reset selection and any filter text when the note (and so its backlinks) changes
+  useEffect(() => { setSelectedIndex(-1); setFilterQuery('') }, [linked, unlinked])
 
   const suppressScrollRef = useRef(false)
   useEffect(() => {
@@ -106,7 +130,7 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
       suppressScrollRef.current = true
       setSelectedIndex(idx)
     }
-    containerRef.current?.focus()
+    inputRef.current?.focus()
   }
 
   // Same three-tier scheme as the search sidebar: plain arrows step entry by
@@ -114,7 +138,7 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // very top/bottom. Cmd/Ctrl+Left hands focus back to the search sidebar.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (document.activeElement !== containerRef.current) return
+      if (document.activeElement !== inputRef.current) return
       const meta = e.metaKey || e.ctrlKey
       const alt = e.altKey
 
@@ -191,23 +215,37 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // Precompute each group's starting flat index, in [linked..., unlinked...] order
   let acc = 0
   const starts = allGroups.map(g => { const s = acc; acc += g.snippets.length; return s })
+  const totalGroups = shownLinked.length + shownUnlinked.length
 
   return (
-    <div
-      ref={containerRef}
-      className="backlinks-panel"
-      tabIndex={-1}
-      onFocus={() => setSelectedIndex(i => (i === -1 && entriesRef.current.length ? 0 : i))}
-    >
+    <div className="backlinks-panel">
       <div className="backlinks-header">
-        <span className="backlinks-header-label">Linked mentions</span>
-        <span className="backlinks-header-count">{linked.length}</span>
+        <div className="backlinks-search-wrap">
+          <input
+            ref={inputRef}
+            className="sidebar-input backlinks-input"
+            placeholder="Filter mentions…"
+            value={filterQuery}
+            onChange={e => setFilterQuery(e.target.value)}
+            onFocus={e => {
+              e.target.select()
+              setSelectedIndex(i => (i === -1 && entriesRef.current.length ? 0 : i))
+            }}
+          />
+          {filterQuery.trim() && (
+            <span className="backlinks-search-count">{totalGroups}</span>
+          )}
+        </div>
         <button className="backlinks-fold" onClick={onToggleOpen}>›</button>
       </div>
       <div className="backlinks-body">
-        {linked.length > 0 && (
+        {shownLinked.length > 0 && (
           <div className="backlinks-section">
-            {linked.map((g, i) => (
+            <div className="backlinks-section-label">
+              <span>Linked mentions</span>
+              <span className="backlinks-section-count">{shownLinked.length}</span>
+            </div>
+            {shownLinked.map((g, i) => (
               <Group
                 key={g.path}
                 group={g}
@@ -221,18 +259,18 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
             ))}
           </div>
         )}
-        {unlinked.length > 0 && (
+        {shownUnlinked.length > 0 && (
           <div className="backlinks-section">
             <div className="backlinks-section-label">
               <span>Unlinked mentions</span>
-              <span className="backlinks-section-count">{unlinked.length}</span>
+              <span className="backlinks-section-count">{shownUnlinked.length}</span>
             </div>
-            {unlinked.map((g, i) => (
+            {shownUnlinked.map((g, i) => (
               <Group
                 key={g.path}
                 group={g}
                 muted
-                startIndex={starts[linked.length + i]}
+                startIndex={starts[shownLinked.length + i]}
                 selectedIndex={selectedIndex}
                 selectedRef={selectedRef}
                 onOpen={onOpen}

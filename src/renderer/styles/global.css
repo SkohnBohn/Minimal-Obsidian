@@ -607,29 +607,30 @@ input {
   display: flex;
   flex-direction: column;
 }
-.backlinks-panel:focus { outline: none; }
-
 .backlinks-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 8px;  /* matches .sidebar-input-wrap exactly, so both panels' headers line up */
   border-bottom: 1px solid var(--ash);
 }
 
-.backlinks-header-label {
-  font-size: 11px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--stone);
+.backlinks-search-wrap {
+  position: relative;
   flex: 1;
+  min-width: 0;
 }
 
-.backlinks-header-count {
+.backlinks-search-count {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 11px;
-  color: var(--link);
-  font-weight: 600;
+  color: var(--stone);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
 }
 
 .backlinks-fold {
