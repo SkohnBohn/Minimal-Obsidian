@@ -72,6 +72,15 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linked, unlinked])
 
+  // Focus the panel when it's explicitly toggled open (e.g. Cmd/Ctrl+Shift+B),
+  // so arrow keys work immediately — but not on an incidental re-render where
+  // `open` was already true (switching notes while the panel stays open).
+  const prevOpenRef = useRef(open)
+  useEffect(() => {
+    if (open && !prevOpenRef.current) containerRef.current?.focus()
+    prevOpenRef.current = open
+  }, [open])
+
   // Reset selection when the note (and so its backlinks) changes
   useEffect(() => { setSelectedIndex(-1) }, [linked, unlinked])
 
