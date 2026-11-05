@@ -38,11 +38,8 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
 
   if (!open) {
     return (
-      <button className="backlinks-strip" onClick={onToggleOpen} data-tip="linked mentions">
-        <span className="backlinks-strip-count">{linked.length}</span>
-        {unlinked.length > 0 && (
-          <span className="backlinks-strip-count backlinks-strip-count-muted">+{unlinked.length}</span>
-        )}
+      <button className="backlinks-strip" onClick={onToggleOpen}>
+        <span className="backlinks-strip-arrow">‹</span>
       </button>
     )
   }
@@ -52,7 +49,7 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
       <div className="backlinks-header">
         <span className="backlinks-header-label">Linked mentions</span>
         <span className="backlinks-header-count">{linked.length}</span>
-        <button className="backlinks-fold" onClick={onToggleOpen} title="Collapse">»</button>
+        <button className="backlinks-fold" onClick={onToggleOpen}>›</button>
       </div>
       <div className="backlinks-body">
         {linked.length > 0 && (
