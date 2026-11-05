@@ -109,6 +109,10 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
         '.cm-searchMatch':          { backgroundColor: '#d4c89a' },
         '.cm-searchMatch-selected': { backgroundColor: '#b09050 !important' },
         '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--link) !important' },
+        // Hide the scrollbar chrome on the autocomplete list — scrolling itself
+        // (wheel, arrow keys) is unaffected, only the visible track/thumb goes.
+        '.cm-tooltip-autocomplete > ul': { scrollbarWidth: 'none' },
+        '.cm-tooltip-autocomplete > ul::-webkit-scrollbar': { display: 'none', width: '0px' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       imageEmbedExt,
