@@ -11,6 +11,7 @@ interface BacklinksPanelProps {
   linked: BacklinkGroup[]
   unlinked: BacklinkGroup[]
   open: boolean
+  width: number
   onToggleOpen: () => void
   onOpen: (path: string, name: string, newTab: boolean, pos?: number) => void
 }
@@ -81,7 +82,7 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, o
   )
 }
 
-export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, onOpen }: BacklinksPanelProps) {
+export default function BacklinksPanel({ linked, unlinked, open, width, onToggleOpen, onOpen }: BacklinksPanelProps) {
   const [filterQuery, setFilterQuery] = useState('')
   const shownLinked = filterGroups(linked, filterQuery)
   const shownUnlinked = filterGroups(unlinked, filterQuery)
@@ -215,10 +216,9 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // Precompute each group's starting flat index, in [linked..., unlinked...] order
   let acc = 0
   const starts = allGroups.map(g => { const s = acc; acc += g.snippets.length; return s })
-  const totalGroups = shownLinked.length + shownUnlinked.length
 
   return (
-    <div className="backlinks-panel">
+    <div className="backlinks-panel" style={{ width }}>
       <div className="backlinks-header">
         <div className="backlinks-search-wrap">
           <input
@@ -232,19 +232,13 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
               setSelectedIndex(i => (i === -1 && entriesRef.current.length ? 0 : i))
             }}
           />
-          {filterQuery.trim() && (
-            <span className="backlinks-search-count">{totalGroups}</span>
-          )}
+          <span className="backlinks-search-count">{shownLinked.length}</span>
         </div>
         <button className="backlinks-fold" onClick={onToggleOpen}>›</button>
       </div>
       <div className="backlinks-body">
         {shownLinked.length > 0 && (
           <div className="backlinks-section">
-            <div className="backlinks-section-label">
-              <span>Linked mentions</span>
-              <span className="backlinks-section-count">{shownLinked.length}</span>
-            </div>
             {shownLinked.map((g, i) => (
               <Group
                 key={g.path}

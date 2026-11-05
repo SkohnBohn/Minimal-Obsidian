@@ -179,6 +179,29 @@ input {
   flex-direction: column;
 }
 
+/* Drag handle for resizing the search sidebar / backlinks panel's own width
+   — same thin hit-target as the split-pane divider, just one-sided. */
+.width-resize-handle {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+}
+.width-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+  background: var(--ash);
+}
+.width-resize-handle:hover::after,
+.width-resize-handle:active::after {
+  background: var(--link);
+}
+
 .sidebar-input-wrap {
   position: relative;
   padding: 8px;
@@ -684,7 +707,7 @@ input {
 
 .backlinks-search-count {
   position: absolute;
-  right: 9px;
+  right: 17px;  /* matches .sidebar-input-count exactly */
   top: 50%;
   transform: translateY(-50%);
   font-size: 11px;
@@ -768,9 +791,8 @@ input {
 }
 
 .backlink-snippet mark {
-  background: none;
-  color: var(--link);
-  font-weight: 600;
+  background: var(--select);  /* same tone as the search sidebar's match highlight */
+  color: inherit;
 }
 
 /* Unlinked mentions read as a quieter, lighter echo of the real thing */
@@ -780,12 +802,6 @@ input {
 }
 .backlink-group-muted .backlink-snippet { opacity: 0.6; }
 .backlink-group-muted .backlink-snippet[data-selected="true"] { opacity: 1; }
-.backlink-group-muted .backlink-snippet mark {
-  color: var(--stone);
-  font-weight: 400;
-  text-decoration: underline;
-  text-decoration-color: var(--ash);
-}
 
 /* Save-error banner */
 .save-error {

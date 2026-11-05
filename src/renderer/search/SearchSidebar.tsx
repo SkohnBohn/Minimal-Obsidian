@@ -10,6 +10,7 @@ interface SearchResult {
 interface SearchSidebarProps {
   query: string
   results: SearchResult[]
+  width: number
   onQuery: (q: string) => void
   onOpen: (path: string, name: string, pos?: number) => void
 }
@@ -26,7 +27,7 @@ function flattenEntries(results: SearchResult[]): FlatEntry[] {
   return out
 }
 
-export default function SearchSidebar({ query, results, onQuery, onOpen }: SearchSidebarProps) {
+export default function SearchSidebar({ query, results, width, onQuery, onOpen }: SearchSidebarProps) {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const selectedRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -161,7 +162,7 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
   }, [])
 
   return (
-    <div className="sidebar">
+    <div className="sidebar" style={{ width }}>
       <div className="sidebar-input-wrap">
         <input
           ref={inputRef}

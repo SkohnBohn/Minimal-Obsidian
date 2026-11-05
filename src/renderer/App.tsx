@@ -12,6 +12,7 @@ import SettingsPanel from './settings/SettingsPanel'
 import SearchSidebar from './search/SearchSidebar'
 import BacklinksPanel from './backlinks/BacklinksPanel'
 import FileSwitcher from './modal/FileSwitcher'
+import ResizeHandle from './layout/ResizeHandle'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
@@ -30,6 +31,10 @@ export default function App() {
   const [backlinks, setBacklinks] = useState<{ linked: BacklinkGroup[]; unlinked: BacklinkGroup[] }>({ linked: [], unlinked: [] })
   const [backlinksOpen, setBacklinksOpen] = useState(true)
   const backlinksDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Default approximates the CSS fallback (12.5vw) in px, until the user
+  // drags a handle and picks their own — then that's persisted and wins.
+  const [searchWidth, setSearchWidth] = useState(() => Math.round(window.innerWidth * 0.125))
+  const [backlinksWidth, setBacklinksWidth] = useState(() => Math.round(window.innerWidth * 0.125))
 
   const handleSearchQuery = useCallback((q: string) => {
     setSearchQuery(q)
@@ -95,6 +100,12 @@ export default function App() {
   useEffect(() => {
     if (searchStateLoaded.current) window.api.settings.set('backlinks.open', backlinksOpen)
   }, [backlinksOpen])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('search.sidebarWidth', searchWidth)
+  }, [searchWidth])
+  useEffect(() => {
+    if (searchStateLoaded.current) window.api.settings.set('backlinks.width', backlinksWidth)
+  }, [backlinksWidth])
 
   // showFind resets on every activeTabId change; restore it only after first tab load.
   useEffect(() => { setShowFind(false) }, [activeTabId])
@@ -162,7 +173,9 @@ export default function App() {
       window.api.settings.get('search.findOpen'),
       window.api.settings.get('search.findQuery'),
       window.api.settings.get('backlinks.open'),
-    ]).then(([sidebarOpen, sidebarQuery, findOpen, findQuery, backlinksOpenSaved]) => {
+      window.api.settings.get('search.sidebarWidth'),
+      window.api.settings.get('backlinks.width'),
+    ]).then(([sidebarOpen, sidebarQuery, findOpen, findQuery, backlinksOpenSaved, sidebarWidth, backlinksWidthSaved]) => {
       if (sidebarOpen) setShowSidebar(true)
       if (sidebarQuery) {
         const q = sidebarQuery as string
@@ -172,6 +185,8 @@ export default function App() {
       pendingFindOpen.current = !!(findOpen)
       if (findQuery) setFindQuery(findQuery as string)
       if (backlinksOpenSaved !== undefined) setBacklinksOpen(backlinksOpenSaved as boolean)
+      if (typeof sidebarWidth === 'number') setSearchWidth(sidebarWidth)
+      if (typeof backlinksWidthSaved === 'number') setBacklinksWidth(backlinksWidthSaved)
       searchStateLoaded.current = true
     })
   }, [])
@@ -658,15 +673,25 @@ export default function App() {
 
         {/* Search sidebar — in flow, pushes main to the right */}
         {showSidebar && (
-          <SearchSidebar
-            query={searchQuery}
-            results={searchResults}
-            onQuery={handleSearchQuery}
-            onOpen={(path, name, pos) => {
-              openAtPosition(path, name, pos, false)
-              setShowSidebar(false)
-            }}
-          />
+          <>
+            <SearchSidebar
+              query={searchQuery}
+              results={searchResults}
+              width={searchWidth}
+              onQuery={handleSearchQuery}
+              onOpen={(path, name, pos) => {
+                openAtPosition(path, name, pos, false)
+                setShowSidebar(false)
+              }}
+            />
+            <ResizeHandle
+              direction="right"
+              min={180}
+              max={600}
+              getWidth={() => searchWidth}
+              onChange={setSearchWidth}
+            />
+          </>
         )}
 
         {/* Main content — one pane, or two side by side with a resizable divider */}
@@ -685,13 +710,25 @@ export default function App() {
         </div>
 
         {backlinksTab && (
-          <BacklinksPanel
-            linked={backlinks.linked}
-            unlinked={backlinks.unlinked}
-            open={backlinksOpen}
-            onToggleOpen={() => setBacklinksOpen(v => !v)}
-            onOpen={(path, name, newTab, pos) => openAtPosition(path, name, pos, newTab)}
-          />
+          <>
+            {backlinksOpen && (
+              <ResizeHandle
+                direction="left"
+                min={200}
+                max={600}
+                getWidth={() => backlinksWidth}
+                onChange={setBacklinksWidth}
+              />
+            )}
+            <BacklinksPanel
+              linked={backlinks.linked}
+              unlinked={backlinks.unlinked}
+              open={backlinksOpen}
+              width={backlinksWidth}
+              onToggleOpen={() => setBacklinksOpen(v => !v)}
+              onOpen={(path, name, newTab, pos) => openAtPosition(path, name, pos, newTab)}
+            />
+          </>
         )}
       </div>
 
