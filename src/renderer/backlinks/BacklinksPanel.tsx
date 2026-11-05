@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 
+interface SnippetSpan { html: string; from: number; to: number }
 interface BacklinkGroup {
   name: string
   path: string
-  snippets: string[]
+  snippets: SnippetSpan[]
 }
 
 interface BacklinksPanelProps {
@@ -11,7 +12,7 @@ interface BacklinksPanelProps {
   unlinked: BacklinkGroup[]
   open: boolean
   onToggleOpen: () => void
-  onOpen: (path: string, name: string, newTab: boolean) => void
+  onOpen: (path: string, name: string, newTab: boolean, pos?: number) => void
 }
 
 // One flat, keyboard-navigable unit per snippet, mirroring the search
@@ -36,11 +37,13 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, o
   onHoverEntry: (idx: number) => void
 }) {
   return (
-    <div
-      className={muted ? 'backlink-group backlink-group-muted' : 'backlink-group'}
-      onClick={e => onOpen(group.path, group.name, e.metaKey || e.ctrlKey)}
-    >
-      <div className="backlink-group-title">{group.name}</div>
+    <div className={muted ? 'backlink-group backlink-group-muted' : 'backlink-group'}>
+      <div
+        className="backlink-group-title"
+        onClick={e => onOpen(group.path, group.name, e.metaKey || e.ctrlKey, group.snippets[0]?.from)}
+      >
+        {group.name}
+      </div>
       {group.snippets.map((s, i) => {
         const idx = startIndex + i
         return (
@@ -50,7 +53,8 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, o
             className="backlink-snippet"
             data-selected={idx === selectedIndex ? 'true' : undefined}
             onMouseEnter={() => onHoverEntry(idx)}
-            dangerouslySetInnerHTML={{ __html: s }}
+            onClick={e => onOpen(group.path, group.name, e.metaKey || e.ctrlKey, s.from)}
+            dangerouslySetInnerHTML={{ __html: s.html }}
           />
         )
       })}
@@ -166,7 +170,8 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
           const idx = i >= 0 ? i : 0
           const entry = entriesRef.current[idx]
           const g = entry ? groupsRef.current[entry.groupIndex] : groupsRef.current[0]
-          if (g) onOpenRef.current(g.path, g.name, false)
+          const snippet = entry ? g?.snippets[entry.snippetIndex] : g?.snippets[0]
+          if (g) onOpenRef.current(g.path, g.name, false, snippet?.from)
           return i
         })
       }

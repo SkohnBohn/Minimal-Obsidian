@@ -115,22 +115,22 @@ export function useTabs() {
     if (active) window.api.settings.set(SESSION_ACTIVE_KEY, active.name)
   }, [activeTabId, tabs])
 
-  const openTab = useCallback(async (path: string, name: string) => {
+  const openTab = useCallback(async (path: string, name: string, jumpPos?: number) => {
     const existing = tabsRef.current.find(t => t.path === path)
     if (existing) { activateTab(existing.id); return }
     const content = await window.api.vault.read(path)
     setTabs(prev => {
       const found = prev.find(t => t.path === path)
       if (found) { activateTab(found.id); return prev }
-      const newTab = makeTab(path, name, content)
+      const newTab = makeTab(path, name, content, jumpPos ?? 0)
       activateTab(newTab.id)
       return [...prev, newTab]
     })
   }, [activateTab])
 
-  const openTabForceNew = useCallback(async (path: string, name: string) => {
+  const openTabForceNew = useCallback(async (path: string, name: string, jumpPos?: number) => {
     const content = await window.api.vault.read(path)
-    const newTab = makeTab(path, name, content)
+    const newTab = makeTab(path, name, content, jumpPos ?? 0)
     setTabs(prev => [...prev, newTab])
     activateTab(newTab.id)
   }, [activateTab])
@@ -155,7 +155,7 @@ export function useTabs() {
   }, [activateTab, openTab])
 
   // Navigate within the current tab (pushes history)
-  const navigateInTab = useCallback(async (tabId: string, name: string, forceInPlace = false) => {
+  const navigateInTab = useCallback(async (tabId: string, name: string, forceInPlace = false, jumpPos?: number) => {
     const files = await window.api.vault.list()
     // Case-insensitive match to avoid creating duplicate files on macOS (HFS+/APFS).
     const nameLower = name.toLowerCase()
@@ -186,11 +186,29 @@ export function useTabs() {
       return {
         ...t, path: targetPath, name: targetName,
         initialContent: content, isDirty: false,
-        cmState: null, scrollPos: 0,
+        cmState: null, scrollPos: 0, cursorPos: jumpPos ?? 0,
         contentVersion: t.contentVersion + 1,
         navHistory: newHistory, navIndex: newHistory.length - 1,
         cameFrom: undefined
       }
+    }))
+  }, [])
+
+  // Moves the cursor in a tab that's already open but not necessarily active —
+  // e.g. clicking a search/backlink result for a note open in another tab.
+  // If the tab has already been rendered (cmState set), updates the selection
+  // via a transaction on that state rather than discarding it, so any unsaved
+  // edits sitting only in cmState are never lost. If it hasn't rendered yet,
+  // just sets cursorPos — the editor's own mount logic applies it on first render.
+  const jumpInTab = useCallback((tabId: string, pos: number) => {
+    setTabs(prev => prev.map(t => {
+      if (t.id !== tabId) return t
+      if (t.cmState) {
+        const clamped = Math.min(pos, t.cmState.doc.length)
+        const newState = t.cmState.update({ selection: { anchor: clamped }, scrollIntoView: true }).state
+        return { ...t, cmState: newState, cursorPos: clamped }
+      }
+      return { ...t, cursorPos: pos }
     }))
   }, [])
 
@@ -362,7 +380,7 @@ export function useTabs() {
   return {
     tabs, activeTab, activeTabId,
     setActiveTabId: activateTab, openTab, openTabForceNew, openTabByName,
-    navigateInTab, goBack, goForward,
+    navigateInTab, jumpInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved, resetTabs

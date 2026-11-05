@@ -6,10 +6,16 @@ export interface FileEntry {
   mtime: number
 }
 
+export interface SnippetSpan {
+  html: string
+  from: number  // absolute character offset into the file's raw content
+  to: number
+}
+
 export interface SearchResult {
   path: string
   name: string
-  snippet: string
+  snippets: SnippetSpan[]
 }
 
 export interface LinkGraph {
@@ -20,7 +26,7 @@ export interface LinkGraph {
 export interface BacklinkGroup {
   name: string
   path: string
-  snippets: string[]
+  snippets: SnippetSpan[]
 }
 
 export interface Backlinks {

@@ -187,15 +187,14 @@ input {
 
 .sidebar-result-snippet {
   font-size: 12px;
+  line-height: 1.45;
+  max-height: 4.35em;  /* exactly 3 lines — plain max-height clips cleanly, unlike -webkit-line-clamp's occasional 1px bleed from the next line */
   color: var(--stone);
   opacity: 0.8;
   margin-top: 4px;
   padding: 4px 6px;
   background: var(--bg);
   border: 1px solid transparent;  /* reserved so the selected-state border below doesn't shift layout */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
@@ -674,15 +673,14 @@ input {
 
 .backlink-snippet {
   font-size: 12px;
+  line-height: 1.45;
+  max-height: 2.9em;  /* exactly 2 lines — see .sidebar-result-snippet for why not -webkit-line-clamp */
   color: var(--stone);
   opacity: 0.8;
   margin-top: 3px;
   padding: 3px 6px;
   background: var(--bg);
   border: 1px solid transparent;  /* reserved so the selected-state border below doesn't shift layout */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .backlink-snippet + .backlink-snippet { margin-top: 2px; }

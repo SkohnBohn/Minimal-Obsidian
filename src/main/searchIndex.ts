@@ -1,9 +1,16 @@
 import FlexSearch from 'flexsearch'
+import { stripMarkdownNoise } from './snippetText'
+
+export interface SnippetSpan {
+  html: string
+  from: number  // absolute character offset into the file's raw content
+  to: number
+}
 
 export interface SearchResult {
   path: string
   name: string
-  snippets: string[]
+  snippets: SnippetSpan[]
 }
 
 interface DocRecord {
@@ -12,6 +19,7 @@ interface DocRecord {
   name: string
   content: string       // main content only — what FlexSearch indexes
   sourcesContent: string
+  sourcesOffset: number // absolute offset where sourcesContent begins in the raw file
 }
 
 // @ts-ignore – FlexSearch types are loose
@@ -20,7 +28,7 @@ const index = new FlexSearch.Document({
   document: {
     id: 'id',
     index: ['content'],
-    store: ['path', 'name', 'content', 'sourcesContent']
+    store: ['path', 'name', 'content', 'sourcesContent', 'sourcesOffset']
   }
 })
 
@@ -29,7 +37,7 @@ const docs = new Map<string, DocRecord>()
 const SEPARATOR_RE = /^[-_*]{3,}\s*$/
 const FOOTNOTE_DEF_RE = /^\[\^[^\]]+\]:/
 
-function splitSources(raw: string): { main: string; sources: string } {
+function splitSources(raw: string): { main: string; sources: string; sourcesOffset: number } {
   const lines = raw.split('\n')
   // Walk backwards to find the last separator-like line
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -37,10 +45,11 @@ function splitSources(raw: string): { main: string; sources: string } {
     // Check whether anything after it is a footnote definition
     const after = lines.slice(i + 1)
     if (after.some(l => FOOTNOTE_DEF_RE.test(l))) {
-      return { main: lines.slice(0, i).join('\n'), sources: after.join('\n') }
+      const sourcesOffset = lines.slice(0, i + 1).join('\n').length + 1
+      return { main: lines.slice(0, i).join('\n'), sources: after.join('\n'), sourcesOffset }
     }
   }
-  return { main: raw, sources: '' }
+  return { main: raw, sources: '', sourcesOffset: raw.length }
 }
 
 export function indexFile(path: string, name: string, rawContent: string): void {
@@ -49,8 +58,8 @@ export function indexFile(path: string, name: string, rawContent: string): void 
     // @ts-ignore
     index.remove(id)
   }
-  const { main, sources } = splitSources(rawContent)
-  const record: DocRecord = { id, path, name, content: main, sourcesContent: sources }
+  const { main, sources, sourcesOffset } = splitSources(rawContent)
+  const record: DocRecord = { id, path, name, content: main, sourcesContent: sources, sourcesOffset }
   docs.set(id, record)
   // @ts-ignore
   index.add(record)
@@ -66,18 +75,22 @@ export function removeFile(path: string): void {
 
 // Exposes the already-maintained in-memory content cache for callers (e.g. backlinks)
 // that need full-vault text without re-reading every file from disk on each query.
-export function listIndexedDocs(): Array<{ path: string; name: string; content: string }> {
+// main/sources are kept separate (rather than concatenated) along with sourcesOffset,
+// so callers can compute absolute raw-file character offsets for either part.
+export function listIndexedDocs(): Array<{ path: string; name: string; main: string; sources: string; sourcesOffset: number }> {
   return Array.from(docs.values()).map(d => ({
     path: d.path,
     name: d.name,
-    content: d.sourcesContent ? `${d.content}\n${d.sourcesContent}` : d.content
+    main: d.content,
+    sources: d.sourcesContent,
+    sourcesOffset: d.sourcesOffset
   }))
 }
 
-function buildSnippets(content: string, query: string, maxHits = 50): string[] {
+function buildSnippets(content: string, query: string, offsetBase: number, maxHits = 50): SnippetSpan[] {
   const lower = content.toLowerCase()
   const q = query.toLowerCase()
-  const results: string[] = []
+  const results: SnippetSpan[] = []
   let searchFrom = 0
 
   while (results.length < maxHits) {
@@ -90,17 +103,32 @@ function buildSnippets(content: string, query: string, maxHits = 50): string[] {
     const end = Math.min(lineEnd, idx + query.length + 90)
     const pre = start > lineStart ? '…' : ''
     const post = end < lineEnd ? '…' : ''
-    const before = content.slice(start, idx)
+    const before = stripMarkdownNoise(content.slice(start, idx))
     const match = content.slice(idx, idx + query.length)
-    const after = content.slice(idx + query.length, end)
-    results.push(`${pre}${before}<mark>${match}</mark>${after}${post}`)
+    const after = stripMarkdownNoise(content.slice(idx + query.length, end))
+    results.push({
+      html: `${pre}${before}<mark>${match}</mark>${after}${post}`,
+      from: offsetBase + idx,
+      to: offsetBase + idx + query.length
+    })
     searchFrom = lineEnd + 1  // skip to next line — no two snippets from the same line
   }
 
   if (results.length === 0) {
     // Matched via title — show first non-empty line as plain preview
-    const first = (content.split('\n').find(l => l.trim()) ?? '').slice(0, 120)
-    if (first) results.push(first)
+    let pos = 0
+    for (const line of content.split('\n')) {
+      if (line.trim()) {
+        const first = line.slice(0, 120)
+        results.push({
+          html: stripMarkdownNoise(first),
+          from: offsetBase + pos,
+          to: offsetBase + pos + first.length
+        })
+        break
+      }
+      pos += line.length + 1
+    }
   }
 
   return results
@@ -120,9 +148,10 @@ export async function search(query: string, includeSources: boolean, limit = 100
         const doc: DocRecord = r.doc
         if (seen.has(doc.path)) continue
         seen.add(doc.path)
-        const snippetSrc = doc.content.toLowerCase().includes(query.toLowerCase())
-          ? doc.content : (doc.sourcesContent || doc.content)
-        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query) })
+        const inMain = doc.content.toLowerCase().includes(query.toLowerCase())
+        const snippetSrc = inMain ? doc.content : (doc.sourcesContent || doc.content)
+        const offsetBase = inMain ? 0 : doc.sourcesOffset
+        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query, offsetBase) })
       }
     }
   }
@@ -135,9 +164,10 @@ export async function search(query: string, includeSources: boolean, limit = 100
       const searchable = includeSources ? doc.content + '\n' + doc.sourcesContent : doc.content
       if (searchable.toLowerCase().includes(q)) {
         seen.add(doc.path)
-        const snippetSrc = (includeSources && !doc.content.toLowerCase().includes(q))
-          ? doc.sourcesContent : doc.content
-        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query) })
+        const useSources = includeSources && !doc.content.toLowerCase().includes(q)
+        const snippetSrc = useSources ? doc.sourcesContent : doc.content
+        const offsetBase = useSources ? doc.sourcesOffset : 0
+        results.push({ path: doc.path, name: doc.name, snippets: buildSnippets(snippetSrc, query, offsetBase) })
       }
     }
   }

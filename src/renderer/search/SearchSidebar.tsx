@@ -1,16 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react'
 
+interface SnippetSpan { html: string; from: number; to: number }
 interface SearchResult {
   path: string
   name: string
-  snippets: string[]
+  snippets: SnippetSpan[]
 }
 
 interface SearchSidebarProps {
   query: string
   results: SearchResult[]
   onQuery: (q: string) => void
-  onOpen: (path: string, name: string) => void
+  onOpen: (path: string, name: string, pos?: number) => void
 }
 
 // One flat, keyboard-navigable unit per snippet — so arrow keys step through
@@ -136,7 +137,8 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
           const idx = i >= 0 ? i : 0
           const entry = entriesRef.current[idx]
           const r = entry ? resultsRef.current[entry.resultIndex] : resultsRef.current[0]
-          if (r) onOpenRef.current(r.path, r.name)
+          const snippet = entry ? r?.snippets[entry.snippetIndex] : r?.snippets[0]
+          if (r) onOpenRef.current(r.path, r.name, snippet?.from)
           return i
         })
         return
@@ -180,12 +182,13 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
         {(() => {
           let flatIdx = -1
           return results.map(r => (
-            <div
-              key={r.path}
-              className="sidebar-result"
-              onClick={() => onOpen(r.path, r.name)}
-            >
-              <div className="sidebar-result-title">{r.name}</div>
+            <div key={r.path} className="sidebar-result">
+              <div
+                className="sidebar-result-title"
+                onClick={() => onOpen(r.path, r.name, r.snippets[0]?.from)}
+              >
+                {r.name}
+              </div>
               {r.snippets.map((s, j) => {
                 flatIdx++
                 const idx = flatIdx
@@ -196,7 +199,8 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
                     className="sidebar-result-snippet"
                     data-selected={idx === selectedIndex ? 'true' : undefined}
                     onMouseEnter={() => handleHoverEntry(idx)}
-                    dangerouslySetInnerHTML={{ __html: s }}
+                    onClick={() => onOpen(r.path, r.name, s.from)}
+                    dangerouslySetInnerHTML={{ __html: s.html }}
                   />
                 )
               })}

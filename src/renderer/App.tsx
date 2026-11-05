@@ -13,14 +13,16 @@ import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
 interface FileEntry { name: string; path: string; mtime: number }
-interface BacklinkGroup { name: string; path: string; snippets: string[] }
+interface SnippetSpan { html: string; from: number; to: number }
+interface BacklinkGroup { name: string; path: string; snippets: SnippetSpan[] }
+interface SearchResultEntry { path: string; name: string; snippets: SnippetSpan[] }
 
 export default function App() {
   const [files, setFiles] = useState<FileEntry[]>([])
   const [showSidebar, setShowSidebar] = useState(false)
   const [showSwitcher, setShowSwitcher] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<{path:string;name:string;snippets:string[]}[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResultEntry[]>([])
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [backlinks, setBacklinks] = useState<{ linked: BacklinkGroup[]; unlinked: BacklinkGroup[] }>({ linked: [], unlinked: [] })
   const [backlinksOpen, setBacklinksOpen] = useState(true)
@@ -52,7 +54,7 @@ export default function App() {
 
   const {
     tabs, activeTab, activeTabId, setActiveTabId,
-    openTab, openTabForceNew, openTabByName, navigateInTab, goBack, goForward,
+    openTab, openTabForceNew, openTabByName, navigateInTab, jumpInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
     updateTabState, markTabSaved, resetTabs
@@ -342,6 +344,38 @@ export default function App() {
   const handleOpenNote = useCallback((name: string) => openTabByName(name), [openTabByName])
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
 
+  // Opens a note (from a search/backlink click) and moves the cursor to the
+  // exact matched position. Three cases, since "where the content actually
+  // lives" differs for each:
+  //  - already the active tab: jump directly on the live view — React state
+  //    (cmState) isn't what's rendered, so updating it wouldn't move anything.
+  //  - active tab is some other note: reuse it (existing click behavior) —
+  //    the editor remounts fresh, so its own cursorPos-on-mount logic applies.
+  //  - not currently viewing a note: open/activate the right tab; if it was
+  //    already open elsewhere, jump its stored selection first (a safe
+  //    transaction that can't discard unsaved content) before switching to it.
+  const openAtPosition = useCallback((path: string, name: string, pos: number | undefined, forceNewTab: boolean) => {
+    if (forceNewTab) { openTabForceNew(path, name, pos); return }
+
+    if (activeTabId && activeTab?.type === 'note' && activeTab.path === path) {
+      if (pos !== undefined && activeEditorView.current) {
+        const view = activeEditorView.current
+        const clamped = Math.min(pos, view.state.doc.length)
+        view.dispatch({ selection: { anchor: clamped }, scrollIntoView: true })
+      }
+      return
+    }
+
+    if (activeTabId && activeTab?.type === 'note') {
+      navigateInTab(activeTabId, name, true, pos)
+      return
+    }
+
+    const other = tabs.find(t => t.path === path)
+    if (other && pos !== undefined) jumpInTab(other.id, pos)
+    openTab(path, name, pos)
+  }, [activeTab, activeTabId, tabs, jumpInTab, navigateInTab, openTab, openTabForceNew])
+
   const openNoteNewTab = useCallback(async (name: string) => {
     const files = await window.api.vault.list()
     const nameLower = name.toLowerCase()
@@ -473,9 +507,8 @@ export default function App() {
             query={searchQuery}
             results={searchResults}
             onQuery={handleSearchQuery}
-            onOpen={(path, name) => {
-              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name, true)
-              else openTab(path, name)
+            onOpen={(path, name, pos) => {
+              openAtPosition(path, name, pos, false)
               setShowSidebar(false)
             }}
           />
@@ -585,11 +618,7 @@ export default function App() {
             unlinked={backlinks.unlinked}
             open={backlinksOpen}
             onToggleOpen={() => setBacklinksOpen(v => !v)}
-            onOpen={(path, name, newTab) => {
-              if (newTab) { openTabForceNew(path, name); return }
-              if (activeTabId && activeTab?.type === 'note') navigateInTab(activeTabId, name, true)
-              else openTab(path, name)
-            }}
+            onOpen={(path, name, newTab, pos) => openAtPosition(path, name, pos, newTab)}
           />
         )}
       </div>

@@ -1,3 +1,5 @@
+import { stripMarkdownNoise } from './snippetText'
+
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g
 
 export interface LinkGraph {
@@ -38,10 +40,16 @@ export function buildLinkGraph(files: Array<{ name: string; content: string }>):
 // very different kinds of evidence — deliberate vs. incidental — never blur
 // together.
 
+export interface SnippetSpan {
+  html: string
+  from: number  // absolute character offset into the file's raw content
+  to: number
+}
+
 export interface BacklinkGroup {
   name: string
   path: string
-  snippets: string[]
+  snippets: SnippetSpan[]
 }
 
 export interface Backlinks {
@@ -65,8 +73,8 @@ function makeSnippet(line: string, matchStart: number, matchLen: number, display
   const end = Math.min(line.length, matchStart + matchLen + SNIPPET_CONTEXT)
   const pre = start > 0 ? '…' : ''
   const post = end < line.length ? '…' : ''
-  const before = escapeHtml(line.slice(start, matchStart))
-  const after = escapeHtml(line.slice(matchStart + matchLen, end))
+  const before = escapeHtml(stripMarkdownNoise(line.slice(start, matchStart)))
+  const after = escapeHtml(stripMarkdownNoise(line.slice(matchStart + matchLen, end)))
   return `${pre}${before}<mark>${escapeHtml(display)}</mark>${after}${post}`
 }
 
@@ -74,9 +82,60 @@ function isWordChar(ch: string | undefined): boolean {
   return !!ch && /[\p{L}\p{N}_]/u.test(ch)
 }
 
+// Scans one text blob (a doc's main content, or its sources section) for
+// matches, appending absolute-offset snippet spans into the shared arrays.
+// offsetBase shifts line-relative positions into raw-file coordinates.
+function scanText(
+  text: string,
+  offsetBase: number,
+  targetName: string,
+  targetLower: string,
+  linkedSnippets: SnippetSpan[],
+  unlinkedSnippets: SnippetSpan[]
+): void {
+  let lineStart = 0
+  for (const line of text.split('\n')) {
+    const linkSpans: Array<[number, number]> = []
+    const re = new RegExp(WIKILINK_DISPLAY_RE.source, 'g')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(line)) !== null) {
+      linkSpans.push([m.index, m.index + m[0].length])
+      if (linkedSnippets.length >= MAX_SNIPPETS_PER_GROUP) continue
+      if (m[1].trim() !== targetName) continue
+      const display = (m[2] ?? m[1]).trim()
+      linkedSnippets.push({
+        html: makeSnippet(line, m.index, m[0].length, display),
+        from: offsetBase + lineStart + m.index,
+        to: offsetBase + lineStart + m.index + m[0].length
+      })
+    }
+
+    // Plain-text mentions: same text, outside any [[...]] span, not glued
+    // to surrounding letters/digits (so "Cat" doesn't match "Category").
+    const lowerLine = line.toLowerCase()
+    let searchFrom = 0
+    while (unlinkedSnippets.length < MAX_SNIPPETS_PER_GROUP) {
+      const idx = lowerLine.indexOf(targetLower, searchFrom)
+      if (idx === -1) break
+      searchFrom = idx + targetName.length
+      const before = idx > 0 ? line[idx - 1] : undefined
+      const after = idx + targetName.length < line.length ? line[idx + targetName.length] : undefined
+      if (isWordChar(before) || isWordChar(after)) continue
+      if (linkSpans.some(([s, e]) => idx >= s && idx < e)) continue
+      unlinkedSnippets.push({
+        html: makeSnippet(line, idx, targetName.length, line.slice(idx, idx + targetName.length)),
+        from: offsetBase + lineStart + idx,
+        to: offsetBase + lineStart + idx + targetName.length
+      })
+    }
+
+    lineStart += line.length + 1
+  }
+}
+
 export function findBacklinks(
   targetName: string,
-  docs: Array<{ path: string; name: string; content: string }>
+  docs: Array<{ path: string; name: string; main: string; sources: string; sourcesOffset: number }>
 ): Backlinks {
   const linked: BacklinkGroup[] = []
   const unlinked: BacklinkGroup[] = []
@@ -85,35 +144,12 @@ export function findBacklinks(
 
   for (const doc of docs) {
     if (doc.name === targetName) continue  // a note's own self-links aren't "backlinks"
-    const linkedSnippets: string[] = []
-    const unlinkedSnippets: string[] = []
+    const linkedSnippets: SnippetSpan[] = []
+    const unlinkedSnippets: SnippetSpan[] = []
 
-    for (const line of doc.content.split('\n')) {
-      const linkSpans: Array<[number, number]> = []
-      const re = new RegExp(WIKILINK_DISPLAY_RE.source, 'g')
-      let m: RegExpExecArray | null
-      while ((m = re.exec(line)) !== null) {
-        linkSpans.push([m.index, m.index + m[0].length])
-        if (linkedSnippets.length >= MAX_SNIPPETS_PER_GROUP) continue
-        if (m[1].trim() !== targetName) continue
-        const display = (m[2] ?? m[1]).trim()
-        linkedSnippets.push(makeSnippet(line, m.index, m[0].length, display))
-      }
-
-      // Plain-text mentions: same text, outside any [[...]] span, not glued
-      // to surrounding letters/digits (so "Cat" doesn't match "Category").
-      const lowerLine = line.toLowerCase()
-      let searchFrom = 0
-      while (unlinkedSnippets.length < MAX_SNIPPETS_PER_GROUP) {
-        const idx = lowerLine.indexOf(targetLower, searchFrom)
-        if (idx === -1) break
-        searchFrom = idx + targetName.length
-        const before = idx > 0 ? line[idx - 1] : undefined
-        const after = idx + targetName.length < line.length ? line[idx + targetName.length] : undefined
-        if (isWordChar(before) || isWordChar(after)) continue
-        if (linkSpans.some(([s, e]) => idx >= s && idx < e)) continue
-        unlinkedSnippets.push(makeSnippet(line, idx, targetName.length, line.slice(idx, idx + targetName.length)))
-      }
+    scanText(doc.main, 0, targetName, targetLower, linkedSnippets, unlinkedSnippets)
+    if (doc.sources) {
+      scanText(doc.sources, doc.sourcesOffset, targetName, targetLower, linkedSnippets, unlinkedSnippets)
     }
 
     if (linkedSnippets.length) linked.push({ name: doc.name, path: doc.path, snippets: linkedSnippets })
