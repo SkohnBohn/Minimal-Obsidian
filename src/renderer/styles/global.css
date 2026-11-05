@@ -185,8 +185,7 @@ input {
   overflow: hidden;
 }
 
-.sidebar-result-snippet[data-selected="true"],
-.sidebar-result-snippet:hover {
+.sidebar-result-snippet[data-selected="true"] {
   border-color: var(--link);
   opacity: 1;
 }
@@ -674,8 +673,7 @@ input {
 }
 .backlink-snippet + .backlink-snippet { margin-top: 2px; }
 
-.backlink-snippet[data-selected="true"],
-.backlink-snippet:hover {
+.backlink-snippet[data-selected="true"] {
   border-color: var(--link);
   opacity: 1;
 }
@@ -692,8 +690,7 @@ input {
   font-weight: 400;
 }
 .backlink-group-muted .backlink-snippet { opacity: 0.6; }
-.backlink-group-muted .backlink-snippet[data-selected="true"],
-.backlink-group-muted .backlink-snippet:hover { opacity: 1; }
+.backlink-group-muted .backlink-snippet[data-selected="true"] { opacity: 1; }
 .backlink-group-muted .backlink-snippet mark {
   color: var(--stone);
   font-weight: 400;

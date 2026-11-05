@@ -26,13 +26,14 @@ function flattenEntries(groups: BacklinkGroup[]): FlatEntry[] {
   return out
 }
 
-function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen }: {
+function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen, onHoverEntry }: {
   group: BacklinkGroup
   muted: boolean
   startIndex: number
   selectedIndex: number
   selectedRef: React.RefObject<HTMLDivElement>
   onOpen: BacklinksPanelProps['onOpen']
+  onHoverEntry: (idx: number) => void
 }) {
   return (
     <div
@@ -48,6 +49,7 @@ function Group({ group, muted, startIndex, selectedIndex, selectedRef, onOpen }:
             ref={idx === selectedIndex ? selectedRef : undefined}
             className="backlink-snippet"
             data-selected={idx === selectedIndex ? 'true' : undefined}
+            onMouseEnter={() => onHoverEntry(idx)}
             dangerouslySetInnerHTML={{ __html: s }}
           />
         )
@@ -84,9 +86,20 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
   // Reset selection when the note (and so its backlinks) changes
   useEffect(() => { setSelectedIndex(-1) }, [linked, unlinked])
 
+  const suppressScrollRef = useRef(false)
   useEffect(() => {
+    if (suppressScrollRef.current) { suppressScrollRef.current = false; return }
     selectedRef.current?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex])
+
+  // Hovering an entry selects it, same as arrow keys would — so there's only
+  // ever one selected/bordered entry. Moving the mouse off the list leaves
+  // the selection on whatever was last hovered; arrow keys continue from there.
+  function handleHoverEntry(idx: number) {
+    if (idx === selectedIndex) return
+    suppressScrollRef.current = true
+    setSelectedIndex(idx)
+  }
 
   // Same three-tier scheme as the search sidebar: plain arrows step entry by
   // entry, Option/Alt+arrow jumps group by group, Cmd/Ctrl+arrow jumps to the
@@ -194,6 +207,7 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
                 selectedIndex={selectedIndex}
                 selectedRef={selectedRef}
                 onOpen={onOpen}
+                onHoverEntry={handleHoverEntry}
               />
             ))}
           </div>
@@ -210,6 +224,7 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
                 selectedIndex={selectedIndex}
                 selectedRef={selectedRef}
                 onOpen={onOpen}
+                onHoverEntry={handleHoverEntry}
               />
             ))}
           </div>

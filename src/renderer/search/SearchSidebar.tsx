@@ -33,6 +33,8 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
   const onOpenRef = useRef(onOpen)
   const entriesRef = useRef<FlatEntry[]>([])
 
+  const suppressScrollRef = useRef(false)
+
   useEffect(() => { resultsRef.current = results }, [results])
   useEffect(() => { onOpenRef.current = onOpen }, [onOpen])
   useEffect(() => { entriesRef.current = flattenEntries(results) }, [results])
@@ -43,10 +45,22 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
   // Reset selection when results change
   useEffect(() => { setSelectedIndex(-1) }, [results])
 
-  // Scroll selected result into view
+  // Scroll selected result into view — but not when the selection just moved
+  // because the mouse hovered a new entry (it's already on screen by then).
   useEffect(() => {
+    if (suppressScrollRef.current) { suppressScrollRef.current = false; return }
     selectedRef.current?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex])
+
+  // Hovering an entry selects it, same as arrow keys would — so there's only
+  // ever one selected/bordered entry, never a separate keyboard one and a
+  // separate hovered one. Moving the mouse off the list leaves the selection
+  // on whatever was last hovered; arrow keys then continue from there.
+  function handleHoverEntry(idx: number) {
+    if (idx === selectedIndex) return
+    suppressScrollRef.current = true
+    setSelectedIndex(idx)
+  }
 
   // Global keydown handler — works regardless of focus.
   // Three navigation tiers: plain arrows step entry by entry, Option/Alt+arrow
@@ -173,6 +187,7 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
                     ref={idx === selectedIndex ? selectedRef : undefined}
                     className="sidebar-result-snippet"
                     data-selected={idx === selectedIndex ? 'true' : undefined}
+                    onMouseEnter={() => handleHoverEntry(idx)}
                     dangerouslySetInnerHTML={{ __html: s }}
                   />
                 )
