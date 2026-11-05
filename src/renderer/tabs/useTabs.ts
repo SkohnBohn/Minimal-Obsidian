@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { EditorState } from '@codemirror/state'
 import { v4 as uuidv4 } from 'uuid'
 
+export type PaneId = 'left' | 'right'
+
 export interface NavEntry {
   path: string
   name: string
@@ -9,6 +11,7 @@ export interface NavEntry {
 
 export interface Tab {
   id: string
+  paneId: PaneId
   type: 'note' | 'graph' | 'hotkeys' | 'settings'
   path: string
   name: string
@@ -28,10 +31,12 @@ export interface Tab {
 
 const SESSION_TABS_KEY = 'session.tabs'
 const SESSION_ACTIVE_KEY = 'session.activeTabId'
+const SESSION_SPLIT_KEY = 'session.splitRatio'
+const SESSION_FOCUSED_PANE_KEY = 'session.focusedPane'
 
-function makeTab(path: string, name: string, content: string, cursorPos = 0): Tab {
+function makeTab(path: string, name: string, content: string, cursorPos = 0, paneId: PaneId = 'left'): Tab {
   return {
-    id: uuidv4(), type: 'note', path, name,
+    id: uuidv4(), paneId, type: 'note', path, name,
     isDirty: false, scrollPos: 0, cursorPos, cmState: null,
     initialContent: content, contentVersion: 0,
     navHistory: [{ path, name }], navIndex: 0,
@@ -39,27 +44,27 @@ function makeTab(path: string, name: string, content: string, cursorPos = 0): Ta
   }
 }
 
-function makeGraphTab(): Tab {
+function makeGraphTab(paneId: PaneId = 'left'): Tab {
   return {
-    id: uuidv4(), type: 'graph', path: '', name: 'Graph',
+    id: uuidv4(), paneId, type: 'graph', path: '', name: 'Graph',
     isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
-function makeSettingsTab(): Tab {
+function makeSettingsTab(paneId: PaneId = 'left'): Tab {
   return {
-    id: uuidv4(), type: 'settings', path: '', name: 'Settings',
+    id: uuidv4(), paneId, type: 'settings', path: '', name: 'Settings',
     isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
   }
 }
 
-function makeHotkeysTab(): Tab {
+function makeHotkeysTab(paneId: PaneId = 'left'): Tab {
   return {
-    id: uuidv4(), type: 'hotkeys', path: '', name: 'Shortcuts',
+    id: uuidv4(), paneId, type: 'hotkeys', path: '', name: 'Shortcuts',
     isDirty: false, scrollPos: 0, cursorPos: 0, cmState: null,
     initialContent: '', contentVersion: 0,
     navHistory: [], navIndex: 0, lastUsed: Date.now()
@@ -68,16 +73,46 @@ function makeHotkeysTab(): Tab {
 
 export function useTabs() {
   const [tabs, setTabs] = useState<Tab[]>([])
-  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [activeTabIdByPane, setActiveTabIdByPane] = useState<Record<PaneId, string | null>>({ left: null, right: null })
+  const [focusedPane, setFocusedPaneState] = useState<PaneId>('left')
+  const [splitRatio, setSplitRatio] = useState(0.5)
   const restored = useRef(false)
+  const sessionLoaded = useRef(false)
   const tabsRef = useRef<Tab[]>([])
+  const activeTabIdByPaneRef = useRef(activeTabIdByPane)
+  const focusedPaneRef = useRef(focusedPane)
   useEffect(() => { tabsRef.current = tabs }, [tabs])
+  useEffect(() => { activeTabIdByPaneRef.current = activeTabIdByPane }, [activeTabIdByPane])
+  useEffect(() => { focusedPaneRef.current = focusedPane }, [focusedPane])
 
-  const activateTab = useCallback((id: string | null) => {
-    if (!id) { setActiveTabId(null); return }
-    setActiveTabId(id)
+  const setFocusedPane = useCallback((pane: PaneId) => setFocusedPaneState(pane), [])
+
+  // A tab's own pane decides where activating it lands, unless a pane is given
+  // explicitly (e.g. a tab bar always activates within its own pane). Activating
+  // also focuses that pane, since clicking a tab is a clear statement of intent.
+  const activateTab = useCallback((id: string | null, pane?: PaneId) => {
+    if (!id) return
+    const tab = tabsRef.current.find(t => t.id === id)
+    const targetPane = pane ?? tab?.paneId ?? 'left'
+    setActiveTabIdByPane(prev => ({ ...prev, [targetPane]: id }))
+    setFocusedPaneState(targetPane)
     setTabs(prev => prev.map(t => t.id === id ? { ...t, lastUsed: Date.now() } : t))
   }, [])
+
+  // Invariant: when not split, every tab lives in 'left'. If 'left' ever empties
+  // out while 'right' still has tabs (e.g. closing left's last tab, or a
+  // cross-pane move draining it), fold 'right' back into 'left' so the
+  // single-pane view always reads from the same place and the split cleanly
+  // auto-collapses regardless of which side emptied.
+  useEffect(() => {
+    const hasLeft = tabs.some(t => t.paneId === 'left')
+    const hasRight = tabs.some(t => t.paneId === 'right')
+    if (hasRight && !hasLeft) {
+      setTabs(prev => prev.map(t => t.paneId === 'right' ? { ...t, paneId: 'left' } : t))
+      setActiveTabIdByPane(prev => ({ left: prev.right, right: null }))
+      setFocusedPaneState('left')
+    }
+  }, [tabs])
 
   // Restore session
   useEffect(() => {
@@ -85,55 +120,90 @@ export function useTabs() {
     restored.current = true
     ;(async () => {
       const saved = (await window.api.settings.get(SESSION_TABS_KEY)) as
-        | Array<{ path: string; name: string; type?: string; cursorPos?: number }> | undefined
-      const savedActive = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as string | undefined
+        | Array<{ path: string; name: string; type?: string; cursorPos?: number; paneId?: PaneId }> | undefined
+      const savedActive = (await window.api.settings.get(SESSION_ACTIVE_KEY)) as
+        | { left?: string | null; right?: string | null } | string | undefined
+      const savedRatio = (await window.api.settings.get(SESSION_SPLIT_KEY)) as number | undefined
+      const savedFocused = (await window.api.settings.get(SESSION_FOCUSED_PANE_KEY)) as PaneId | undefined
+      // All reads are in; only now is it safe for the persist effects below to
+      // start writing, so a later default-value write can't race ahead of a
+      // not-yet-issued read and clobber the saved value before it's seen.
+      sessionLoaded.current = true
       if (!saved?.length) return
       const restoredTabs: Tab[] = []
-      for (const { path, name, type, cursorPos } of saved) {
-        if (type === 'graph') { restoredTabs.push(makeGraphTab()); continue }
-        if (type === 'hotkeys') { restoredTabs.push(makeHotkeysTab()); continue }
-        if (type === 'settings') { restoredTabs.push(makeSettingsTab()); continue }
+      for (const { path, name, type, cursorPos, paneId } of saved) {
+        const pane: PaneId = paneId === 'right' ? 'right' : 'left'
+        if (type === 'graph') { restoredTabs.push(makeGraphTab(pane)); continue }
+        if (type === 'hotkeys') { restoredTabs.push(makeHotkeysTab(pane)); continue }
+        if (type === 'settings') { restoredTabs.push(makeSettingsTab(pane)); continue }
         let content = ''
         try { content = await window.api.vault.read(path) } catch { continue }
-        restoredTabs.push(makeTab(path, name, content, cursorPos ?? 0))
+        restoredTabs.push(makeTab(path, name, content, cursorPos ?? 0, pane))
       }
       if (!restoredTabs.length) return
       setTabs(restoredTabs)
-      const active = savedActive ? restoredTabs.find(t => t.name === savedActive) : restoredTabs[0]
-      setActiveTabId((active ?? restoredTabs[0]).id)
+      if (typeof savedRatio === 'number') setSplitRatio(savedRatio)
+      // Older sessions saved a single active-tab name (string); newer ones save
+      // {left, right} names per pane. Handle both for a smooth upgrade.
+      const byName = (n: string | null | undefined) => n ? restoredTabs.find(t => t.name === n) : undefined
+      if (typeof savedActive === 'string') {
+        setActiveTabIdByPane({ left: (byName(savedActive) ?? restoredTabs[0])?.id ?? null, right: null })
+      } else {
+        const leftTabs = restoredTabs.filter(t => t.paneId === 'left')
+        const rightTabs = restoredTabs.filter(t => t.paneId === 'right')
+        setActiveTabIdByPane({
+          left: (byName(savedActive?.left) ?? leftTabs[0])?.id ?? null,
+          right: (byName(savedActive?.right) ?? rightTabs[0])?.id ?? null
+        })
+      }
+      if (savedFocused === 'left' || savedFocused === 'right') setFocusedPaneState(savedFocused)
     })()
   }, [])
 
   useEffect(() => {
+    if (!sessionLoaded.current) return
     window.api.settings.set(SESSION_TABS_KEY, tabs.map(t => ({
-      path: t.path, name: t.name, type: t.type,
+      path: t.path, name: t.name, type: t.type, paneId: t.paneId,
       cursorPos: t.cmState?.selection.main.head ?? t.cursorPos
     })))
   }, [tabs])
 
   useEffect(() => {
-    const active = tabs.find(t => t.id === activeTabId)
-    if (active) window.api.settings.set(SESSION_ACTIVE_KEY, active.name)
-  }, [activeTabId, tabs])
+    if (!sessionLoaded.current) return
+    const leftActive = tabs.find(t => t.id === activeTabIdByPane.left)
+    const rightActive = tabs.find(t => t.id === activeTabIdByPane.right)
+    window.api.settings.set(SESSION_ACTIVE_KEY, { left: leftActive?.name ?? null, right: rightActive?.name ?? null })
+  }, [activeTabIdByPane, tabs])
+
+  useEffect(() => {
+    if (!sessionLoaded.current) return
+    window.api.settings.set(SESSION_SPLIT_KEY, splitRatio)
+  }, [splitRatio])
+  useEffect(() => {
+    if (!sessionLoaded.current) return
+    window.api.settings.set(SESSION_FOCUSED_PANE_KEY, focusedPane)
+  }, [focusedPane])
 
   const openTab = useCallback(async (path: string, name: string, jumpPos?: number) => {
     const existing = tabsRef.current.find(t => t.path === path)
     if (existing) { activateTab(existing.id); return }
+    const pane = focusedPaneRef.current
     const content = await window.api.vault.read(path)
     setTabs(prev => {
       const found = prev.find(t => t.path === path)
       if (found) { activateTab(found.id); return prev }
-      const newTab = makeTab(path, name, content, jumpPos ?? 0)
-      activateTab(newTab.id)
+      const newTab = makeTab(path, name, content, jumpPos ?? 0, pane)
+      activateTab(newTab.id, pane)
       return [...prev, newTab]
     })
   }, [activateTab])
 
   const openTabForceNew = useCallback(async (path: string, name: string, jumpPos?: number) => {
+    const pane = focusedPaneRef.current
     const content = await window.api.vault.read(path)
-    const newTab = makeTab(path, name, content, jumpPos ?? 0)
+    const newTab = makeTab(path, name, content, jumpPos ?? 0, pane)
     setTabs(prev => [...prev, newTab])
-    activateTab(newTab.id)
+    activateTab(newTab.id, pane)
   }, [activateTab])
 
   const openTabByName = useCallback(async (name: string) => {
@@ -262,44 +332,53 @@ export function useTabs() {
 
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
-      const idx = prev.findIndex(t => t.id === tabId)
-      if (idx === -1) return prev
+      const tab = prev.find(t => t.id === tabId)
+      if (!tab) return prev
+      const pane = tab.paneId
+      const paneTabs = prev.filter(t => t.paneId === pane)
+      const idx = paneTabs.findIndex(t => t.id === tabId)
       const next = prev.filter(t => t.id !== tabId)
-      setActiveTabId(act => act !== tabId ? act : (next[idx] ?? next[idx - 1] ?? null)?.id ?? null)
+      setActiveTabIdByPane(prevActive => {
+        if (prevActive[pane] !== tabId) return prevActive
+        const remainingPaneTabs = next.filter(t => t.paneId === pane)
+        const fallback = remainingPaneTabs[idx] ?? remainingPaneTabs[idx - 1] ?? null
+        return { ...prevActive, [pane]: fallback?.id ?? null }
+      })
       return next
     })
   }, [])
 
   const createNewTab = useCallback(async () => {
+    const pane = focusedPaneRef.current
     const files = await window.api.vault.list()
     let n = 1, name = 'Untitled'
     while (files.some(f => f.name === name)) name = `Untitled ${n++}`
     const path = await window.api.vault.create(name)
     const content = await window.api.vault.read(path)
-    const newTab: Tab = { ...makeTab(path, name, content), isNaming: true }
+    const newTab: Tab = { ...makeTab(path, name, content, 0, pane), isNaming: true }
     setTabs(prev => {
       if (prev.find(t => t.path === path)) return prev
-      activateTab(newTab.id)
+      activateTab(newTab.id, pane)
       return [...prev, newTab]
     })
-  }, [])
+  }, [activateTab])
 
   const clearNaming = useCallback((tabId: string) => {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isNaming: false } : t))
   }, [])
 
+  // Cycles within the focused pane's own tabs only — cycling across both
+  // panes' tabs combined would be unpredictable once split.
   const switchTab = useCallback((dir: 'prev' | 'next') => {
-    setTabs(prev => {
-      if (!prev.length) return prev
-      setActiveTabId(act => {
-        const idx = prev.findIndex(t => t.id === act)
-        if (idx === -1) return act
-        const next = dir === 'next' ? (idx + 1) % prev.length : (idx - 1 + prev.length) % prev.length
-        return prev[next].id
-      })
-      return prev
-    })
-  }, [])
+    const pane = focusedPaneRef.current
+    const paneTabs = tabsRef.current.filter(t => t.paneId === pane)
+    if (!paneTabs.length) return
+    const act = activeTabIdByPaneRef.current[pane]
+    const idx = paneTabs.findIndex(t => t.id === act)
+    if (idx === -1) return
+    const next = dir === 'next' ? (idx + 1) % paneTabs.length : (idx - 1 + paneTabs.length) % paneTabs.length
+    activateTab(paneTabs[next].id, pane)
+  }, [activateTab])
 
   const updateTabState = useCallback((tabId: string, content: string, cmState: EditorState, scrollPos: number) => {
     setTabs(prev => prev.map(t =>
@@ -312,27 +391,30 @@ export function useTabs() {
   }, [])
 
   const openGraphTab = useCallback((forceNew?: boolean) => {
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'graph')
-    if (existing) { activateTab(existing.id); return }
-    const gt = makeGraphTab()
+    const pane = focusedPaneRef.current
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'graph' && t.paneId === pane)
+    if (existing) { activateTab(existing.id, pane); return }
+    const gt = makeGraphTab(pane)
     setTabs(prev => [...prev, gt])
-    activateTab(gt.id)
+    activateTab(gt.id, pane)
   }, [activateTab])
 
   const openSettingsTab = useCallback((forceNew?: boolean) => {
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'settings')
-    if (existing) { activateTab(existing.id); return }
-    const st = makeSettingsTab()
+    const pane = focusedPaneRef.current
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'settings' && t.paneId === pane)
+    if (existing) { activateTab(existing.id, pane); return }
+    const st = makeSettingsTab(pane)
     setTabs(prev => [...prev, st])
-    activateTab(st.id)
+    activateTab(st.id, pane)
   }, [activateTab])
 
   const openHotkeysTab = useCallback((forceNew?: boolean) => {
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'hotkeys')
-    if (existing) { activateTab(existing.id); return }
-    const ht = makeHotkeysTab()
+    const pane = focusedPaneRef.current
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'hotkeys' && t.paneId === pane)
+    if (existing) { activateTab(existing.id, pane); return }
+    const ht = makeHotkeysTab(pane)
     setTabs(prev => [...prev, ht])
-    activateTab(ht.id)
+    activateTab(ht.id, pane)
   }, [activateTab])
 
   const resetTabs = useCallback(async (
@@ -340,7 +422,8 @@ export function useTabs() {
     activeTabName?: string | null
   ) => {
     setTabs([])
-    setActiveTabId(null)
+    setActiveTabIdByPane({ left: null, right: null })
+    setFocusedPaneState('left')
     if (!specs.length) return
     const restored: Tab[] = []
     for (const s of specs) {
@@ -356,17 +439,68 @@ export function useTabs() {
     const active = activeTabName
       ? (restored.find(t => t.name === activeTabName) ?? restored[0])
       : restored[0]
-    setActiveTabId(active.id)
+    setActiveTabIdByPane({ left: active.id, right: null })
   }, [])
 
-  const reorderTab = useCallback((fromIdx: number, toIdx: number) => {
+  // Reorders within a single pane's tab bar (drag within the same bar).
+  const reorderTab = useCallback((pane: PaneId, fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return
     setTabs(prev => {
-      if (fromIdx === toIdx) return prev
-      const next = [...prev]
+      const paneTabs = prev.filter(t => t.paneId === pane)
+      const others = prev.filter(t => t.paneId !== pane)
+      const next = [...paneTabs]
       const [tab] = next.splice(fromIdx, 1)
       next.splice(fromIdx < toIdx ? toIdx - 1 : toIdx, 0, tab)
+      // Re-merge preserving overall relative order isn't important — each
+      // pane only ever renders its own filtered slice, so a stable order
+      // per-pane is all that matters.
+      return [...others, ...next]
+    })
+  }, [])
+
+  // Moves a tab to the other pane (drag from one pane's bar onto the other,
+  // once already split), making it active there and focusing that pane. If it
+  // was the active tab in its old pane, that pane falls back to another of
+  // its own tabs, same as closing would.
+  const moveTabToPane = useCallback((tabId: string, pane: PaneId) => {
+    const tab = tabsRef.current.find(t => t.id === tabId)
+    if (!tab || tab.paneId === pane) return
+    const oldPane = tab.paneId
+    setTabs(prev => prev.map(t => t.id === tabId ? { ...t, paneId: pane } : t))
+    setActiveTabIdByPane(prev => {
+      const next = { ...prev, [pane]: tabId }
+      if (prev[oldPane] === tabId) {
+        const remaining = tabsRef.current.filter(t => t.paneId === oldPane && t.id !== tabId)
+        next[oldPane] = remaining[0]?.id ?? null
+      }
       return next
     })
+    setFocusedPaneState(pane)
+  }, [])
+
+  // Creates the split from an unsplit state: the dragged tab becomes the sole
+  // content of `side`'s pane; every other tab moves to the opposite pane,
+  // keeping whichever of them was active before (unless that was the dragged
+  // tab itself, in which case the first remaining tab takes over).
+  const splitFromTab = useCallback((tabId: string, side: PaneId) => {
+    const current = tabsRef.current
+    if (current.some(t => t.paneId === 'right')) return  // already split — not this function's job
+    const dragged = current.find(t => t.id === tabId)
+    if (!dragged || current.filter(t => t.paneId === 'left').length < 2) return  // need something left to split off
+    const otherSide: PaneId = side === 'left' ? 'right' : 'left'
+
+    const newTabs = current.map(t => t.id === tabId ? { ...t, paneId: side } : { ...t, paneId: otherSide })
+    setTabs(newTabs)
+
+    const otherSideTabs = newTabs.filter(t => t.paneId === otherSide)
+    const prevLeftActive = activeTabIdByPaneRef.current.left
+    const otherActive = (prevLeftActive && prevLeftActive !== tabId && otherSideTabs.some(t => t.id === prevLeftActive))
+      ? prevLeftActive
+      : (otherSideTabs[0]?.id ?? null)
+
+    setActiveTabIdByPane({ [side]: tabId, [otherSide]: otherActive } as Record<PaneId, string | null>)
+    setFocusedPaneState(side)
+    setSplitRatio(0.5)
   }, [])
 
   const renameTab = useCallback((tabId: string, newName: string, newPath: string) => {
@@ -379,14 +513,24 @@ export function useTabs() {
     }))
   }, [])
 
-  const activeTab = tabs.find(t => t.id === activeTabId) ?? null
+  const isSplit = tabs.some(t => t.paneId === 'right')
+  const leftTabs = tabs.filter(t => t.paneId === 'left')
+  const rightTabs = tabs.filter(t => t.paneId === 'right')
+  const leftActiveTab = tabs.find(t => t.id === activeTabIdByPane.left) ?? null
+  const rightActiveTab = tabs.find(t => t.id === activeTabIdByPane.right) ?? null
+  const activeTab = (focusedPane === 'left' ? leftActiveTab : rightActiveTab)
+  const activeTabId = activeTab?.id ?? null
 
   return {
-    tabs, activeTab, activeTabId,
+    tabs, leftTabs, rightTabs, isSplit,
+    activeTab, activeTabId, leftActiveTab, rightActiveTab,
+    activeTabIdByPane, focusedPane, setFocusedPane,
+    splitRatio, setSplitRatio,
     setActiveTabId: activateTab, openTab, openTabForceNew, openTabByName,
     navigateInTab, jumpInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
     closeTab, createNewTab, switchTab, reorderTab,
+    moveTabToPane, splitFromTab,
     updateTabState, markTabSaved, resetTabs
   }
 }

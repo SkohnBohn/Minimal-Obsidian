@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import TabBar from './tabs/TabBar'
 import { useTabs } from './tabs/useTabs'
+import type { Tab, PaneId } from './tabs/useTabs'
+import EdgeDropZones from './tabs/EdgeDropZones'
+import SplitDivider from './tabs/SplitDivider'
 import Editor from './editor/Editor'
 import FindBar from './editor/FindBar'
 import GraphPanel from './graph/GraphPanel'
@@ -38,9 +41,12 @@ export default function App() {
   }, [])
   const [showFind, setShowFind] = useState(false)
   const [findQuery, setFindQuery] = useState('')
-  const activeEditorView = useRef<EditorView | null>(null)
-  const handleViewReady = useCallback((view: EditorView | null) => {
-    activeEditorView.current = view
+  // One live CodeMirror view per pane — split view means up to two editors
+  // can be mounted at once. "The" active view, for Find/rename-focus/etc.,
+  // is always whichever pane currently has focus.
+  const editorViewRefs = useRef<Record<PaneId, EditorView | null>>({ left: null, right: null })
+  const makeViewReadyHandler = useCallback((pane: PaneId) => (view: EditorView | null) => {
+    editorViewRefs.current[pane] = view
   }, [])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [vaultReady, setVaultReady] = useState(false)
@@ -51,12 +57,17 @@ export default function App() {
   const [overlayPaths, setOverlayPaths] = useState<string[]>([])
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
+  const [draggingTabId, setDraggingTabId] = useState<string | null>(null)
+  const splitRowRef = useRef<HTMLDivElement>(null)
 
   const {
-    tabs, activeTab, activeTabId, setActiveTabId,
-    openTab, openTabForceNew, openTabByName, navigateInTab, jumpInTab, goBack, goForward,
+    tabs, leftTabs, rightTabs, isSplit,
+    activeTab, activeTabId, leftActiveTab, rightActiveTab,
+    focusedPane, setFocusedPane,
+    splitRatio, setSplitRatio,
+    setActiveTabId, openTab, openTabForceNew, openTabByName, navigateInTab, jumpInTab, goBack, goForward,
     openGraphTab, openHotkeysTab, openSettingsTab, renameTab, clearNaming,
-    closeTab, createNewTab, switchTab, reorderTab,
+    closeTab, createNewTab, switchTab, reorderTab, moveTabToPane, splitFromTab,
     updateTabState, markTabSaved, resetTabs
   } = useTabs()
 
@@ -94,7 +105,7 @@ export default function App() {
     }
   }, [activeTabId])
 
-  // Auto-focus title input for brand-new tabs
+  // Auto-focus title input for brand-new tabs (always the focused pane's active tab)
   useEffect(() => {
     if (activeTab?.isNaming) {
       setTitleInput('')
@@ -345,21 +356,27 @@ export default function App() {
   const handleOpenFile = useCallback((path: string, name: string) => openTab(path, name), [openTab])
 
   // Opens a note (from a search/backlink click) and moves the cursor to the
-  // exact matched position. Three cases, since "where the content actually
-  // lives" differs for each:
-  //  - already the active tab: jump directly on the live view — React state
-  //    (cmState) isn't what's rendered, so updating it wouldn't move anything.
-  //  - active tab is some other note: reuse it (existing click behavior) —
+  // exact matched position. Four cases, since "where the content actually
+  // lives" differs for each — split view means a note could already be
+  // showing in EITHER pane, not just the focused one:
+  //  - already showing (active) in either pane: jump directly on that pane's
+  //    live view — React state (cmState) isn't what's rendered — and focus
+  //    that pane, since we're taking the user there.
+  //  - focused pane is some other note: reuse it (existing click behavior) —
   //    the editor remounts fresh, so its own cursorPos-on-mount logic applies.
-  //  - not currently viewing a note: open/activate the right tab; if it was
+  //  - not currently viewing a note in the focused pane: open/activate the
+  //    right tab (in its own pane if already open elsewhere); if it was
   //    already open elsewhere, jump its stored selection first (a safe
   //    transaction that can't discard unsaved content) before switching to it.
   const openAtPosition = useCallback((path: string, name: string, pos: number | undefined, forceNewTab: boolean) => {
     if (forceNewTab) { openTabForceNew(path, name, pos); return }
 
-    if (activeTabId && activeTab?.type === 'note' && activeTab.path === path) {
-      if (pos !== undefined && activeEditorView.current) {
-        const view = activeEditorView.current
+    const paneShowingIt: PaneId | null =
+      leftActiveTab?.path === path ? 'left' :
+      rightActiveTab?.path === path ? 'right' : null
+    if (paneShowingIt) {
+      const view = editorViewRefs.current[paneShowingIt]
+      if (pos !== undefined && view) {
         const clamped = Math.min(pos, view.state.doc.length)
         view.dispatch({
           selection: { anchor: clamped },
@@ -367,6 +384,7 @@ export default function App() {
         })
         view.focus()
       }
+      setFocusedPane(paneShowingIt)
       return
     }
 
@@ -376,9 +394,13 @@ export default function App() {
     }
 
     const other = tabs.find(t => t.path === path)
-    if (other && pos !== undefined) jumpInTab(other.id, pos)
+    if (other) {
+      if (pos !== undefined) jumpInTab(other.id, pos)
+      setActiveTabId(other.id)
+      return
+    }
     openTab(path, name, pos)
-  }, [activeTab, activeTabId, tabs, jumpInTab, navigateInTab, openTab, openTabForceNew])
+  }, [activeTab, activeTabId, leftActiveTab, rightActiveTab, tabs, jumpInTab, navigateInTab, openTab, openTabForceNew, setActiveTabId, setFocusedPane])
 
   const openNoteNewTab = useCallback(async (name: string) => {
     const files = await window.api.vault.list()
@@ -470,7 +492,128 @@ export default function App() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward, openSettingsTab, openGraphTab])
+  }, [activeTab, activeTabId, handleCloseTab, createNewTab, switchTab, goBack, goForward, openSettingsTab, openGraphTab])
+
+  // Renders the tab-content area (graph/hotkeys/settings/note editor/empty
+  // state) for one pane. Pulled out since split view mounts this twice.
+  function renderPaneBody(tab: Tab | null, pane: PaneId) {
+    if (tab?.type === 'graph') {
+      return (
+        <GraphPanel
+          activeNoteName={null}
+          onOpenNote={handleOpenNote}
+          highlightNames={searchQuery.trim() ? new Set(searchResults.map(r => r.name)) : undefined}
+        />
+      )
+    }
+    if (tab?.type === 'hotkeys') return <HotkeysPanel />
+    if (tab?.type === 'settings') {
+      return (
+        <SettingsPanel
+          onVaultSet={handleVaultSet}
+          onVaultClear={handleVaultClear}
+          overlayMode={overlayMode}
+          overlayPaths={overlayPaths}
+          onOverlayModeChange={handleOverlayModeChange}
+          onVaultToggle={handleVaultToggle}
+          keyboardOnlyTabs={keyboardOnlyTabs}
+          onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
+          hideRail={hideRail}
+          onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
+        />
+      )
+    }
+    if (tab) {
+      // Title editing is scoped to the focused pane's tab — only one title
+      // can realistically be edited at a time anyway.
+      const isEditingThisTab = editingTitle && pane === focusedPane
+      return (
+        <Editor
+          key={`${tab.id}-${tab.contentVersion}`}
+          tab={tab}
+          noteNames={noteNames}
+          header={
+            isEditingThisTab
+              ? <input
+                  ref={titleInputRef}
+                  className="note-title note-title-input"
+                  value={titleInput}
+                  placeholder={tab.name}
+                  onChange={e => setTitleInput(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      commitRename()
+                      setTimeout(() => editorViewRefs.current[pane]?.focus(), 0)
+                    }
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      commitRename()
+                      setTimeout(() => editorViewRefs.current[pane]?.focus(), 0)
+                    }
+                    if (e.key === 'Escape') { clearNaming(tab.id); setEditingTitle(false) }
+                  }}
+                  autoFocus
+                />
+              : <div
+                  className="note-title"
+                  onClick={() => { setFocusedPane(pane); setTitleInput(tab.name); setEditingTitle(true) }}
+                >
+                  {tab.name}
+                </div>
+          }
+          onNavigateNote={handleNavigateNote}
+          onOpenNote={handleOpenNote}
+          onContentChange={handleContentChange}
+          onEditorUnmount={handleEditorUnmount}
+          onViewReady={makeViewReadyHandler(pane)}
+          onEscapeToTitle={enterTitleEdit}
+        />
+      )
+    }
+    return <div className="editor-empty">CMD + O to open a note</div>
+  }
+
+  function renderPane(pane: PaneId, paneTabs: Tab[], paneActiveTab: Tab | null) {
+    return (
+      <div
+        className="main"
+        style={isSplit ? { flex: `0 1 ${(pane === 'left' ? splitRatio : 1 - splitRatio) * 100}%` } : undefined}
+        onMouseDownCapture={() => setFocusedPane(pane)}
+      >
+        <TabBar
+          paneId={pane}
+          tabs={paneTabs}
+          activeTabId={pane === 'left' && inlineSettings ? null : paneActiveTab?.id ?? null}
+          onActivate={id => { setActiveTabId(id, pane); setInlineSettings(false) }}
+          onClose={handleCloseTab}
+          onReorder={(from, to) => reorderTab(pane, from, to)}
+          onMoveFromOtherPane={tabId => moveTabToPane(tabId, pane)}
+          onTabDragStart={id => setDraggingTabId(id)}
+          onTabDragEnd={() => setDraggingTabId(null)}
+          keyboardOnly={keyboardOnlyTabs}
+          onSettings={hideRail && pane === 'left' ? () => setInlineSettings(true) : undefined}
+          settingsActive={hideRail && pane === 'left' && inlineSettings}
+        />
+        <div className="editor-pane">
+          {pane === 'left' && inlineSettings ? (
+            <SettingsPanel
+              onVaultSet={handleVaultSet}
+              onVaultClear={handleVaultClear}
+              overlayMode={overlayMode}
+              overlayPaths={overlayPaths}
+              onOverlayModeChange={handleOverlayModeChange}
+              onVaultToggle={handleVaultToggle}
+              keyboardOnlyTabs={keyboardOnlyTabs}
+              onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
+              hideRail={hideRail}
+              onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
+            />
+          ) : renderPaneBody(paneActiveTab, pane)}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app">
@@ -518,102 +661,19 @@ export default function App() {
           />
         )}
 
-        {/* Main content */}
-        <div className="main">
-          <TabBar
-            tabs={tabs}
-            activeTabId={inlineSettings ? null : activeTabId}
-            onActivate={id => { setActiveTabId(id); setInlineSettings(false) }}
-            onClose={handleCloseTab}
-            onReorder={reorderTab}
-            keyboardOnly={keyboardOnlyTabs}
-            onSettings={hideRail ? () => setInlineSettings(true) : undefined}
-            settingsActive={hideRail && inlineSettings}
+        {/* Main content — one pane, or two side by side with a resizable divider */}
+        <div className="split-row" ref={splitRowRef}>
+          {renderPane('left', leftTabs, leftActiveTab)}
+          {isSplit && (
+            <>
+              <SplitDivider containerRef={splitRowRef} ratio={splitRatio} onChange={setSplitRatio} />
+              {renderPane('right', rightTabs, rightActiveTab)}
+            </>
+          )}
+          <EdgeDropZones
+            active={draggingTabId !== null && !isSplit}
+            onDropSide={(tabId, side) => { splitFromTab(tabId, side); setDraggingTabId(null) }}
           />
-
-          <div className="editor-pane">
-            {inlineSettings ? (
-              <SettingsPanel
-                onVaultSet={handleVaultSet}
-                onVaultClear={handleVaultClear}
-                overlayMode={overlayMode}
-                overlayPaths={overlayPaths}
-                onOverlayModeChange={handleOverlayModeChange}
-                onVaultToggle={handleVaultToggle}
-                keyboardOnlyTabs={keyboardOnlyTabs}
-                onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
-                hideRail={hideRail}
-                onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
-              />
-            ) : activeTab?.type === 'graph' ? (
-              <GraphPanel
-                activeNoteName={null}
-                onOpenNote={handleOpenNote}
-                highlightNames={searchQuery.trim() ? new Set(searchResults.map(r => r.name)) : undefined}
-              />
-            ) : activeTab?.type === 'hotkeys' ? (
-              <HotkeysPanel />
-            ) : activeTab?.type === 'settings' ? (
-              <SettingsPanel
-                onVaultSet={handleVaultSet}
-                onVaultClear={handleVaultClear}
-                overlayMode={overlayMode}
-                overlayPaths={overlayPaths}
-                onOverlayModeChange={handleOverlayModeChange}
-                onVaultToggle={handleVaultToggle}
-                keyboardOnlyTabs={keyboardOnlyTabs}
-                onKeyboardOnlyTabsChange={v => { setKeyboardOnlyTabs(v); window.api.settings.set('keyboardOnlyTabs', v) }}
-                hideRail={hideRail}
-                onHideRailChange={v => { setHideRail(v); window.api.settings.set('hideRail', v) }}
-              />
-            ) : activeTab ? (
-              <>
-                <Editor
-                  key={`${activeTab.id}-${activeTab.contentVersion}`}
-                  tab={activeTab}
-                  noteNames={noteNames}
-                  header={
-                    editingTitle
-                      ? <input
-                          ref={titleInputRef}
-                          className="note-title note-title-input"
-                          value={titleInput}
-                          placeholder={activeTab.name}
-                          onChange={e => setTitleInput(e.target.value)}
-                          onBlur={commitRename}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              commitRename()
-                              setTimeout(() => activeEditorView.current?.focus(), 0)
-                            }
-                            if (e.key === 'ArrowDown') {
-                              e.preventDefault()
-                              commitRename()
-                              setTimeout(() => activeEditorView.current?.focus(), 0)
-                            }
-                            if (e.key === 'Escape') { clearNaming(activeTab.id); setEditingTitle(false) }
-                          }}
-                          autoFocus
-                        />
-                      : <div
-                          className="note-title"
-                          onClick={() => { setTitleInput(activeTab.name); setEditingTitle(true) }}
-                        >
-                          {activeTab.name}
-                        </div>
-                  }
-                  onNavigateNote={handleNavigateNote}
-                  onOpenNote={handleOpenNote}
-                  onContentChange={handleContentChange}
-                  onEditorUnmount={handleEditorUnmount}
-                  onViewReady={handleViewReady}
-                  onEscapeToTitle={enterTitleEdit}
-                />
-              </>
-            ) : (
-              <div className="editor-empty">CMD + O to open a note</div>
-            )}
-          </div>
         </div>
 
         {activeTab?.type === 'note' && (
@@ -643,7 +703,7 @@ export default function App() {
 
       {showFind && (
         <FindBar
-          view={activeEditorView.current}
+          view={editorViewRefs.current[focusedPane]}
           query={findQuery}
           onQuery={setFindQuery}
           onClose={() => setShowFind(false)}

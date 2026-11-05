@@ -1,24 +1,35 @@
 import React, { useState } from 'react'
-import type { Tab } from './useTabs'
+import type { Tab, PaneId } from './useTabs'
+
+const DRAG_MIME = 'application/x-minimal-obsidian-tab'
 
 interface TabBarProps {
+  paneId: PaneId
   tabs: Tab[]
   activeTabId: string | null
   onActivate: (id: string) => void
   onClose: (id: string) => void
   onReorder: (fromIdx: number, toIdx: number) => void
+  onMoveFromOtherPane: (tabId: string) => void
+  onTabDragStart?: (tabId: string) => void
+  onTabDragEnd?: () => void
   keyboardOnly?: boolean
   onSettings?: () => void
   settingsActive?: boolean
 }
 
-export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReorder, keyboardOnly, onSettings, settingsActive }: TabBarProps) {
+export default function TabBar({
+  paneId, tabs, activeTabId, onActivate, onClose, onReorder, onMoveFromOtherPane,
+  onTabDragStart, onTabDragEnd, keyboardOnly, onSettings, settingsActive
+}: TabBarProps) {
   const [dragSrc, setDragSrc] = useState<number | null>(null)
   const [insertAt, setInsertAt] = useState<number | null>(null)
 
   function handleDragStart(e: React.DragEvent, idx: number) {
     setDragSrc(idx)
     e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ tabId: tabs[idx].id, paneId }))
+    onTabDragStart?.(tabs[idx].id)
   }
 
   function handleDragOver(e: React.DragEvent<HTMLDivElement>, idx: number) {
@@ -30,6 +41,15 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReord
 
   function handleDrop(e: React.DragEvent, idx: number) {
     e.preventDefault()
+    const raw = e.dataTransfer.getData(DRAG_MIME)
+    const payload = raw ? JSON.parse(raw) as { tabId: string; paneId: PaneId } : null
+    if (payload && payload.paneId !== paneId) {
+      // Dragged in from the other pane — move it here, land it at this slot.
+      onMoveFromOtherPane(payload.tabId)
+      setDragSrc(null)
+      setInsertAt(null)
+      return
+    }
     const rect = e.currentTarget.getBoundingClientRect()
     const to = e.clientX < rect.left + (e.currentTarget as HTMLElement).offsetWidth / 2 ? idx : idx + 1
     if (dragSrc !== null && to !== dragSrc && to !== dragSrc + 1) onReorder(dragSrc, to)
@@ -37,13 +57,35 @@ export default function TabBar({ tabs, activeTabId, onActivate, onClose, onReord
     setInsertAt(null)
   }
 
-  function handleDragEnd() {
+  function handleBarDragOver(e: React.DragEvent) {
+    // Lets a drag from the other (possibly empty) pane be dropped on empty
+    // bar space, not just directly on an existing tab.
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleBarDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const raw = e.dataTransfer.getData(DRAG_MIME)
+    const payload = raw ? JSON.parse(raw) as { tabId: string; paneId: PaneId } : null
+    if (payload && payload.paneId !== paneId) onMoveFromOtherPane(payload.tabId)
     setDragSrc(null)
     setInsertAt(null)
   }
 
+  function handleDragEnd() {
+    setDragSrc(null)
+    setInsertAt(null)
+    onTabDragEnd?.()
+  }
+
   return (
-    <div className="tabbar" onDragLeave={() => setInsertAt(null)}>
+    <div
+      className="tabbar"
+      onDragLeave={() => setInsertAt(null)}
+      onDragOver={handleBarDragOver}
+      onDrop={handleBarDrop}
+    >
       {onSettings && (
         <button
           className={`tabbar-settings-btn${settingsActive ? ' active' : ''}`}
