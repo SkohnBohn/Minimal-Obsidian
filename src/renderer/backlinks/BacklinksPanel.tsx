@@ -142,12 +142,38 @@ export default function BacklinksPanel({ linked, unlinked, open, width, onToggle
     selectedRef.current?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex])
 
+  // While the list is actively being scrolled (wheel/trackpad), entries slide
+  // underneath an otherwise-stationary cursor, each firing a mouseenter that's
+  // indistinguishable from a real hover. Left unchecked, those phantom hovers
+  // drive selection changes whose scrollIntoView then fights the browser's
+  // own native scroll momentum mid-gesture, leaving the list in a half
+  // -settled state once it stops — typically the top entry half clipped.
+  // Hovers are ignored entirely while this is set.
+  const listRef = useRef<HTMLDivElement>(null)
+  const scrollingRef = useRef(false)
+  const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    function handleScroll() {
+      scrollingRef.current = true
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current)
+      scrollSettleTimer.current = setTimeout(() => { scrollingRef.current = false }, 150)
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', handleScroll)
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current)
+    }
+  }, [])
+
   // Hovering an entry selects it, same as arrow keys would — so there's only
   // ever one selected/bordered entry. Moving the mouse off the list leaves
   // the selection on whatever was last hovered; arrow keys continue from there.
   // It also claims focus for this pane — hovering backlinks while search
   // currently "owns" the arrow keys hands them back to backlinks.
   function handleHoverEntry(idx: number) {
+    if (scrollingRef.current) return
     if (idx !== selectedIndex) {
       suppressScrollRef.current = true
       setSelectedIndex(idx)
@@ -257,7 +283,7 @@ export default function BacklinksPanel({ linked, unlinked, open, width, onToggle
         </div>
         <button className="backlinks-fold" onClick={onToggleOpen}>›</button>
       </div>
-      <div className="backlinks-body">
+      <div className="backlinks-body" ref={listRef}>
         {shownLinked.length > 0 && (
           <div className="backlinks-section">
             {shownLinked.map((g, i) => (

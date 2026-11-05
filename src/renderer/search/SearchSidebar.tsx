@@ -37,6 +37,31 @@ export default function SearchSidebar({ query, results, width, onQuery, onOpen }
 
   const suppressScrollRef = useRef(false)
 
+  // While the list is actively being scrolled (wheel/trackpad), entries slide
+  // underneath an otherwise-stationary cursor, each firing a mouseenter that's
+  // indistinguishable from a real hover. Left unchecked, those phantom hovers
+  // drive selection changes whose scrollIntoView then fights the browser's
+  // own native scroll momentum mid-gesture, leaving the list in a half
+  // -settled state once it stops — typically the top entry half clipped.
+  // Hovers are ignored entirely while this is set.
+  const listRef = useRef<HTMLDivElement>(null)
+  const scrollingRef = useRef(false)
+  const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return
+    function handleScroll() {
+      scrollingRef.current = true
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current)
+      scrollSettleTimer.current = setTimeout(() => { scrollingRef.current = false }, 150)
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', handleScroll)
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current)
+    }
+  }, [])
+
   useEffect(() => { resultsRef.current = results }, [results])
   useEffect(() => { onOpenRef.current = onOpen }, [onOpen])
   useEffect(() => { entriesRef.current = flattenEntries(results) }, [results])
@@ -62,6 +87,7 @@ export default function SearchSidebar({ query, results, width, onQuery, onOpen }
   // currently "owns" the arrow keys hands them back to search — hovering
   // wins over whichever pane was last used via keyboard/Cmd+Left/Right.
   function handleHoverEntry(idx: number) {
+    if (scrollingRef.current) return
     if (idx !== selectedIndex) {
       suppressScrollRef.current = true
       setSelectedIndex(idx)
@@ -179,7 +205,7 @@ export default function SearchSidebar({ query, results, width, onQuery, onOpen }
           <span className="sidebar-input-count">{results.length}</span>
         )}
       </div>
-      <div className="sidebar-results">
+      <div className="sidebar-results" ref={listRef}>
         {(() => {
           let flatIdx = -1
           return results.map(r => (
