@@ -223,7 +223,10 @@ export default function BacklinksPanel({ linked, unlinked, open, onToggleOpen, o
         )}
         {unlinked.length > 0 && (
           <div className="backlinks-section">
-            <div className="backlinks-section-label">Unlinked mentions</div>
+            <div className="backlinks-section-label">
+              <span>Unlinked mentions</span>
+              <span className="backlinks-section-count">{unlinked.length}</span>
+            </div>
             {unlinked.map((g, i) => (
               <Group
                 key={g.path}

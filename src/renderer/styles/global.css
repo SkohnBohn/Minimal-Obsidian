@@ -210,9 +210,8 @@ input {
 }
 
 .sidebar-result-snippet mark {
-  background: none;
-  color: var(--link);
-  font-weight: 600;
+  background: var(--select);  /* same tone as Cmd+F's in-file match highlight */
+  color: inherit;  /* <mark> has its own UA default text color otherwise — wrong in dark theme */
 }
 
 /* Tab bar */
@@ -656,12 +655,21 @@ input {
 }
 
 .backlinks-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--stone);
   opacity: 0.6;
   padding: 4px 10px 2px;
+}
+
+.backlinks-section-count {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .backlink-group {
