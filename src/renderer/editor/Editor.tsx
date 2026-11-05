@@ -108,6 +108,7 @@ export default function Editor({ tab, noteNames, header, onNavigateNote, onOpenN
         '.cm-tooltip': { background: 'var(--bg-inset) !important', border: '1px solid var(--ash) !important', borderRadius: '0 !important', boxShadow: 'none !important' },
         '.cm-searchMatch':          { backgroundColor: '#d4c89a' },
         '.cm-searchMatch-selected': { backgroundColor: '#b09050 !important' },
+        '.cm-tooltip-autocomplete > ul > li[aria-selected]': { backgroundColor: 'var(--link) !important' },
       }),
       wikilinkExtension({ noteNames: names, onNavigate: navigate, onOpenNewTab: openNewTab }),
       imageEmbedExt,
