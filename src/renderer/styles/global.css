@@ -162,8 +162,7 @@ input {
   border-bottom: 1px solid transparent;
 }
 
-.sidebar-result:hover,
-.sidebar-result[data-selected="true"] {
+.sidebar-result:hover {
   background: var(--bg);
 }
 
@@ -182,10 +181,15 @@ input {
   margin-top: 4px;
   padding: 4px 6px;
   background: var(--bg);
+  border: 1px solid transparent;  /* reserved so the selected-state border below doesn't shift layout */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.sidebar-result-snippet[data-selected="true"] {
+  border-color: var(--stone);
 }
 
 .sidebar-result-snippet + .sidebar-result-snippet {

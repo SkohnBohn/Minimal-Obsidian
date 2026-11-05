@@ -13,15 +13,29 @@ interface SearchSidebarProps {
   onOpen: (path: string, name: string) => void
 }
 
+// One flat, keyboard-navigable unit per snippet — so arrow keys step through
+// every individual match, not just every file.
+interface FlatEntry { resultIndex: number; snippetIndex: number }
+
+function flattenEntries(results: SearchResult[]): FlatEntry[] {
+  const out: FlatEntry[] = []
+  results.forEach((r, resultIndex) => {
+    r.snippets.forEach((_, snippetIndex) => out.push({ resultIndex, snippetIndex }))
+  })
+  return out
+}
+
 export default function SearchSidebar({ query, results, onQuery, onOpen }: SearchSidebarProps) {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const selectedRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef(results)
   const onOpenRef = useRef(onOpen)
+  const entriesRef = useRef<FlatEntry[]>([])
 
   useEffect(() => { resultsRef.current = results }, [results])
   useEffect(() => { onOpenRef.current = onOpen }, [onOpen])
+  useEffect(() => { entriesRef.current = flattenEntries(results) }, [results])
 
   // Focus input on mount
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -43,9 +57,29 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
         // Still allow ArrowRight from settings → search (handled below)
         return
       }
-      if (e.key === 'ArrowDown') {
+      const jump = e.metaKey || e.ctrlKey
+      if (e.key === 'ArrowDown' && jump) {
+        // Jump to the next file's first entry, regardless of how many matches
+        // the current file has.
         e.preventDefault()
-        setSelectedIndex(i => Math.min(i + 1, resultsRef.current.length - 1))
+        setSelectedIndex(i => {
+          const entries = entriesRef.current
+          const curRi = i >= 0 ? entries[i].resultIndex : -1
+          const next = entries.findIndex(en => en.resultIndex === curRi + 1)
+          return next === -1 ? i : next
+        })
+      } else if (e.key === 'ArrowUp' && jump) {
+        e.preventDefault()
+        setSelectedIndex(i => {
+          const entries = entriesRef.current
+          const curRi = i >= 0 ? entries[i].resultIndex : -1
+          if (curRi <= 0) return i
+          const prev = entries.findIndex(en => en.resultIndex === curRi - 1)
+          return prev === -1 ? i : prev
+        })
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSelectedIndex(i => Math.min(i + 1, entriesRef.current.length - 1))
       } else if (e.key === 'ArrowUp') {
         e.preventDefault()
         setSelectedIndex(i => Math.max(i - 1, -1))
@@ -53,7 +87,8 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
         e.preventDefault()
         setSelectedIndex(i => {
           const idx = i >= 0 ? i : 0
-          const r = resultsRef.current[idx]
+          const entry = entriesRef.current[idx]
+          const r = entry ? resultsRef.current[entry.resultIndex] : resultsRef.current[0]
           if (r) onOpenRef.current(r.path, r.name)
           return i
         })
@@ -87,24 +122,31 @@ export default function SearchSidebar({ query, results, onQuery, onOpen }: Searc
         />
       </div>
       <div className="sidebar-results">
-        {results.map((r, i) => (
-          <div
-            key={r.path}
-            ref={i === selectedIndex ? selectedRef : undefined}
-            className="sidebar-result"
-            data-selected={i === selectedIndex ? 'true' : undefined}
-            onClick={() => onOpen(r.path, r.name)}
-          >
-            <div className="sidebar-result-title">{r.name}</div>
-            {r.snippets.map((s, j) => (
-              <div
-                key={j}
-                className="sidebar-result-snippet"
-                dangerouslySetInnerHTML={{ __html: s }}
-              />
-            ))}
-          </div>
-        ))}
+        {(() => {
+          let flatIdx = -1
+          return results.map(r => (
+            <div
+              key={r.path}
+              className="sidebar-result"
+              onClick={() => onOpen(r.path, r.name)}
+            >
+              <div className="sidebar-result-title">{r.name}</div>
+              {r.snippets.map((s, j) => {
+                flatIdx++
+                const idx = flatIdx
+                return (
+                  <div
+                    key={j}
+                    ref={idx === selectedIndex ? selectedRef : undefined}
+                    className="sidebar-result-snippet"
+                    data-selected={idx === selectedIndex ? 'true' : undefined}
+                    dangerouslySetInnerHTML={{ __html: s }}
+                  />
+                )
+              })}
+            </div>
+          ))
+        })()}
       </div>
     </div>
   )

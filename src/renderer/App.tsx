@@ -401,7 +401,7 @@ export default function App() {
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault()
         if (activeTab) setShowFind(v => !v)
-      } else if (meta && e.shiftKey && !e.altKey && e.key === 'f') {
+      } else if (meta && e.shiftKey && !e.altKey && e.key === 'F') {
         e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()
