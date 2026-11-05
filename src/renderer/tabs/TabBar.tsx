@@ -41,6 +41,7 @@ export default function TabBar({
 
   function handleDrop(e: React.DragEvent, idx: number) {
     e.preventDefault()
+    e.stopPropagation()  // otherwise this bubbles to the bar's own onDrop and fires the move twice
     const raw = e.dataTransfer.getData(DRAG_MIME)
     const payload = raw ? JSON.parse(raw) as { tabId: string; paneId: PaneId } : null
     if (payload && payload.paneId !== paneId) {
@@ -110,7 +111,8 @@ export default function TabBar({
           onDragEnd={handleDragEnd}
         >
           <span className="tab-name">
-            {tab.isDirty ? '· ' : ''}{tab.name}
+            <span className="tab-dirty-dot" style={{ visibility: tab.isDirty ? 'visible' : 'hidden' }}>· </span>
+            {tab.name}
           </span>
           <button
             className="tab-close"

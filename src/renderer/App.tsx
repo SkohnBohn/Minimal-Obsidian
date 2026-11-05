@@ -193,7 +193,14 @@ export default function App() {
     })()
   }, [])
 
-  const activeNoteName = activeTab?.type === 'note' ? activeTab.name : null
+  // Backlinks follow whichever pane has a note open: the focused pane's own
+  // note if it has one, otherwise the other pane's — so opening a special
+  // page (graph/settings/shortcuts) in the focused pane doesn't make the
+  // backlinks panel vanish (and the whole split-row reflow with it) when the
+  // other pane is still showing a note.
+  const otherActiveTab = focusedPane === 'left' ? rightActiveTab : leftActiveTab
+  const backlinksTab = activeTab?.type === 'note' ? activeTab : (otherActiveTab?.type === 'note' ? otherActiveTab : null)
+  const activeNoteName = backlinksTab?.name ?? null
 
   // Debounced — the query itself is a cheap in-memory scan (reuses the search
   // index's already-maintained content cache, no disk reads), but this still
@@ -676,7 +683,7 @@ export default function App() {
           />
         </div>
 
-        {activeTab?.type === 'note' && (
+        {backlinksTab && (
           <BacklinksPanel
             linked={backlinks.linked}
             unlinked={backlinks.unlinked}

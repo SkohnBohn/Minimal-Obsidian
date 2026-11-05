@@ -390,10 +390,15 @@ export function useTabs() {
     setTabs(prev => prev.map(t => t.id === tabId ? { ...t, isDirty: false, initialContent: content } : t))
   }, [])
 
+  // Graph/Settings/Shortcuts are singletons across the WHOLE app, not per
+  // pane — if one's already open in the other pane, jump to it there rather
+  // than creating a duplicate that leaves two tabs of the same name showing
+  // inconsistent active-state across panes. forceNew (rail buttons) opts out
+  // deliberately, when the user does want a second one.
   const openGraphTab = useCallback((forceNew?: boolean) => {
     const pane = focusedPaneRef.current
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'graph' && t.paneId === pane)
-    if (existing) { activateTab(existing.id, pane); return }
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'graph')
+    if (existing) { activateTab(existing.id); return }
     const gt = makeGraphTab(pane)
     setTabs(prev => [...prev, gt])
     activateTab(gt.id, pane)
@@ -401,8 +406,8 @@ export function useTabs() {
 
   const openSettingsTab = useCallback((forceNew?: boolean) => {
     const pane = focusedPaneRef.current
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'settings' && t.paneId === pane)
-    if (existing) { activateTab(existing.id, pane); return }
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'settings')
+    if (existing) { activateTab(existing.id); return }
     const st = makeSettingsTab(pane)
     setTabs(prev => [...prev, st])
     activateTab(st.id, pane)
@@ -410,8 +415,8 @@ export function useTabs() {
 
   const openHotkeysTab = useCallback((forceNew?: boolean) => {
     const pane = focusedPaneRef.current
-    const existing = !forceNew && tabsRef.current.find(t => t.type === 'hotkeys' && t.paneId === pane)
-    if (existing) { activateTab(existing.id, pane); return }
+    const existing = !forceNew && tabsRef.current.find(t => t.type === 'hotkeys')
+    if (existing) { activateTab(existing.id); return }
     const ht = makeHotkeysTab(pane)
     setTabs(prev => [...prev, ht])
     activateTab(ht.id, pane)
