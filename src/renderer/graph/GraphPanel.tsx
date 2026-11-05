@@ -175,6 +175,29 @@ export default function GraphPanel({ activeNoteName, onOpenNote, highlightNames 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  function zoomByFactor(factor: number) {
+    const canvas = canvasRef.current
+    if (!canvas || !zoomRef.current) return
+    select(canvas).call(zoomRef.current.scaleBy, factor, [canvas.width / 2, canvas.height / 2])
+  }
+
+  function resetView() {
+    const canvas = canvasRef.current
+    if (!canvas || !nodesRef.current.length) return
+    applyTransform(computeFitTransform(nodesRef.current, canvas.width, canvas.height))
+  }
+
+  // Keyboard zoom — mainly to get back from the now near-infinite scroll-out range
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomByFactor(1.4) }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomByFactor(1 / 1.4) }
+      else if (e.key === '0') { e.preventDefault(); resetView() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
   // Load graph — restore from cache or simulate fresh
   useEffect(() => {
     let cancelled = false

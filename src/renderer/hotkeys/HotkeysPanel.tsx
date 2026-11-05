@@ -24,6 +24,12 @@ const GROUPS: [string, [string, string][]][] = [
     ['CMD + SHIFT + O', 'insert source ref'],
     ['CMD + SHIFT + P', 'add source entry'],
   ]],
+  ['graph view', [
+    ['+ / -', 'zoom in / out'],
+    ['0', 'reset view'],
+    ['SCROLL', 'zoom'],
+    ['DRAG', 'pan'],
+  ]],
 ]
 
 export default function HotkeysPanel() {
