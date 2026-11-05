@@ -704,6 +704,7 @@ export default function App() {
             { name: 'Shortcuts', type: 'hotkeys', open: () => { openHotkeysTab(); setShowSwitcher(false) } },
           ]}
           onOpen={name => { openNoteNewTab(name); setShowSwitcher(false) }}
+          onActivateTab={id => { setActiveTabId(id); setShowSwitcher(false) }}
           onClose={() => setShowSwitcher(false)}
         />
       )}

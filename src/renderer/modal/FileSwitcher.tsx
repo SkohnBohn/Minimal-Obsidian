@@ -18,6 +18,7 @@ interface FileSwitcherProps {
   files: FileEntry[]
   panels: PanelEntry[]
   onOpen: (name: string) => void
+  onActivateTab: (tabId: string) => void
   onClose: () => void
 }
 
@@ -32,18 +33,23 @@ function vaultBasename(filePath: string): string {
   return parts[parts.length - 2] ?? ''
 }
 
-function buildResults(tabs: Tab[], files: FileEntry[], panels: PanelEntry[], query: string, onOpen: (name: string) => void): ResultItem[] {
+function buildResults(
+  tabs: Tab[], files: FileEntry[], panels: PanelEntry[], query: string,
+  onOpen: (name: string) => void, onActivateTab: (tabId: string) => void
+): ResultItem[] {
   const q = query.toLowerCase()
 
   // Detect name collisions across vaults for hint display
   const nameCounts = new Map<string, number>()
   files.forEach(f => nameCounts.set(f.name, (nameCounts.get(f.name) ?? 0) + 1))
 
-  // All open tabs sorted by lastUsed descending, filtered by query
+  // All open tabs sorted by lastUsed descending, filtered by query. Picking
+  // one of these jumps to that exact already-open tab (wherever its pane is)
+  // rather than force-opening a duplicate — these are tabs, not files.
   const tabItems: ResultItem[] = [...tabs]
     .sort((a, b) => b.lastUsed - a.lastUsed)
     .filter(t => t.type === 'note' && (!q || t.name.toLowerCase().includes(q)))
-    .map(t => ({ key: t.id, label: t.name, activate: () => onOpen(t.name) }))
+    .map(t => ({ key: t.id, label: t.name, activate: () => onActivateTab(t.id) }))
 
   // Panels not already open as a tab
   const openTypes = new Set(tabs.map(t => t.type))
@@ -69,13 +75,13 @@ function buildResults(tabs: Tab[], files: FileEntry[], panels: PanelEntry[], que
   return [...tabItems, ...panelItems, ...fileItems].slice(0, 20)
 }
 
-export default function FileSwitcher({ tabs, files, panels, onOpen, onClose }: FileSwitcherProps) {
+export default function FileSwitcher({ tabs, files, panels, onOpen, onActivateTab, onClose }: FileSwitcherProps) {
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const selectedRef = useRef<HTMLDivElement>(null)
 
-  const results = buildResults(tabs, files, panels, query, onOpen)
+  const results = buildResults(tabs, files, panels, query, onOpen, onActivateTab)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => { setSelectedIdx(0) }, [query])
