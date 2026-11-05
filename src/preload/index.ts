@@ -88,6 +88,16 @@ const api = {
       ipcRenderer.on('app:switch-tab', handler)
       return () => ipcRenderer.removeListener('app:switch-tab', handler)
     },
+    onToggleSearch: (cb: () => void): (() => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('app:toggle-search', handler)
+      return () => ipcRenderer.removeListener('app:toggle-search', handler)
+    },
+    onToggleBacklinks: (cb: () => void): (() => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('app:toggle-backlinks', handler)
+      return () => ipcRenderer.removeListener('app:toggle-backlinks', handler)
+    },
     onFullscreen: (cb: (isFullscreen: boolean) => void): (() => void) => {
       const handler = (_: unknown, v: boolean) => cb(v)
       ipcRenderer.on('app:fullscreen', handler)

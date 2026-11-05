@@ -319,6 +319,17 @@ app.whenReady().then(() => {
           label: 'Previous Tab',
           accelerator: 'Ctrl+Shift+Tab',
           click: () => win.webContents.send('app:switch-tab', 'prev')
+        },
+        { type: 'separator' },
+        {
+          label: 'Search Notes',
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: () => win.webContents.send('app:toggle-search')
+        },
+        {
+          label: 'Toggle Linked Mentions',
+          accelerator: 'CmdOrCtrl+Shift+B',
+          click: () => win.webContents.send('app:toggle-backlinks')
         }
       ]
     }

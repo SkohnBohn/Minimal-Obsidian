@@ -32,6 +32,8 @@ declare global {
       app: {
         onWillQuit(cb: () => void): () => void
         onSwitchTab(cb: (dir: 'prev' | 'next') => void): () => void
+        onToggleSearch(cb: () => void): () => void
+        onToggleBacklinks(cb: () => void): () => void
         onFullscreen(cb: (isFullscreen: boolean) => void): () => void
         confirmQuit(): Promise<void>
       }

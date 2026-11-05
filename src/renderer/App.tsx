@@ -373,6 +373,19 @@ export default function App() {
     return window.api.app.onSwitchTab(dir => switchTab(dir))
   }, [switchTab])
 
+  // Search/backlinks toggles are driven by native menu accelerators (main process),
+  // not a renderer keydown listener — see src/main/index.ts for why: an OS-level
+  // key-combo remap can silently claim Cmd/Ctrl+Shift+<letter> before a plain
+  // `window.addEventListener('keydown', ...)` ever sees it, but a real Electron
+  // menu accelerator is resolved first and wins.
+  useEffect(() => {
+    return window.api.app.onToggleSearch(() => setShowSidebar(v => !v))
+  }, [])
+
+  useEffect(() => {
+    return window.api.app.onToggleBacklinks(() => setBacklinksOpen(v => !v))
+  }, [])
+
   useEffect(() => {
     return window.api.app.onFullscreen(fs => {
       document.documentElement.dataset.fullscreen = fs ? 'true' : 'false'
@@ -401,8 +414,6 @@ export default function App() {
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'f') {
         e.preventDefault()
         if (activeTab) setShowFind(v => !v)
-      } else if (meta && e.shiftKey && !e.altKey && e.key === 'F') {
-        e.preventDefault(); setShowSidebar(v => !v)
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'n') {
         e.preventDefault(); createNewTab()
       } else if (meta && !e.shiftKey && !e.altKey && e.key === 'w') {
@@ -415,8 +426,6 @@ export default function App() {
         e.preventDefault(); openSettingsTab()
       } else if (meta && e.shiftKey && !e.altKey && e.key === 'G') {
         e.preventDefault(); openGraphTab()
-      } else if (meta && e.shiftKey && !e.altKey && e.key === 'B') {
-        e.preventDefault(); setBacklinksOpen(v => !v)
       } else if (e.key === 'Escape') {
         setShowSwitcher(false); setShowSidebar(false); setShowFind(false)
       }
